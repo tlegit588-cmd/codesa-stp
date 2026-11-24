@@ -275,3 +275,70 @@ header .nav-cta:focus-visible{
   outline:3px solid #93c5fd;
   outline-offset:3px;
 }
+
+
+/* 3D raised header navigation controls */
+header .nav-links{gap:12px}
+header .nav-links a{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:9px 14px;
+  border:1px solid #5a514b;
+  border-bottom:4px solid #11100f;
+  border-radius:11px;
+  background:linear-gradient(180deg,#494541 0%,#302e2b 58%,#252321 100%);
+  color:#f7f3ef;
+  font-weight:750;
+  text-shadow:0 1px 1px #0008;
+  box-shadow:0 4px 0 #11100f,0 7px 14px rgba(0,0,0,.22),inset 0 1px 0 #ffffff25;
+  transform:translateY(0);
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease,color .16s ease;
+}
+header .nav-links a:hover,
+header .nav-links a:focus-visible{
+  color:#fff;
+  border-color:#ff9a5b;
+  background:linear-gradient(180deg,#f0782b 0%,#e65300 100%);
+  box-shadow:0 4px 0 #923500,0 9px 18px rgba(230,83,0,.28),inset 0 1px 0 #ffffff55;
+  transform:translateY(-2px);
+}
+header .nav-links a.active{
+  color:#fff;
+  border-color:#f0782b;
+  background:linear-gradient(180deg,#e9681b 0%,#b94300 100%);
+  border-bottom-color:#793000;
+  box-shadow:0 2px 0 #793000,0 4px 10px rgba(0,0,0,.2),inset 0 1px 0 #ffffff40;
+  transform:translateY(2px);
+}
+header .nav-links a:focus-visible{outline:3px solid #ffb17f;outline-offset:4px}
+header .nav-cta{
+  min-height:44px;
+  border:1px solid #ff9a5b;
+  border-bottom:4px solid #923500;
+  border-radius:12px;
+  background:linear-gradient(180deg,#ff7a2b 0%,#e65300 100%);
+  box-shadow:0 4px 0 #923500,0 8px 18px rgba(230,83,0,.28),inset 0 1px 0 #ffffff65;
+  transform:translateY(0);
+}
+header .nav-cta:hover,
+header .nav-cta:focus-visible{
+  background:linear-gradient(180deg,#ff914f 0%,#ed5a05 100%);
+  box-shadow:0 5px 0 #923500,0 11px 22px rgba(230,83,0,.34),inset 0 1px 0 #ffffff75;
+  transform:translateY(-2px);
+}
+header .nav-cta:active,
+header .nav-links a:active{
+  transform:translateY(3px);
+  border-bottom-width:1px;
+  box-shadow:0 1px 0 #793000,inset 0 2px 5px #0003;
+}
+@media(max-width:900px){
+  header .nav-links{gap:10px}
+  header .nav-links a{width:100%;justify-content:flex-start;min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){
+  header .nav-links a,header .nav-cta{transition:none}
+}
