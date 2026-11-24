@@ -254,3 +254,24 @@ footer .footer-grid a:not(.brand):focus-visible{
   outline-offset:3px;
   border-radius:3px;
 }
+
+
+/* Blue primary action button in the site header */
+header .nav-cta{
+  background:#1677e8;
+  color:#fff;
+  border:1px solid #60a5fa;
+  box-shadow:0 5px 16px rgba(22,119,232,.24);
+  transition:background .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+header .nav-cta:hover,
+header .nav-cta:focus-visible{
+  background:#0b5fc4;
+  color:#fff;
+  box-shadow:0 7px 20px rgba(22,119,232,.34);
+  transform:translateY(-1px);
+}
+header .nav-cta:focus-visible{
+  outline:3px solid #93c5fd;
+  outline-offset:3px;
+}
