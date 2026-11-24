@@ -70,3 +70,71 @@ footer{background:#06451f;border-top:4px solid var(--stp-red)}
 .brand-copy{display:block;line-height:1.15;white-space:nowrap}
 .brand-copy small{display:block;margin-top:5px;color:#ffe36a;font-size:.58rem;letter-spacing:.12em;line-height:1.3}
 @media(max-width:600px){.brand-logo{width:48px;height:48px;flex-basis:48px}.brand-copy{font-size:.88rem}.brand-copy small{font-size:.49rem;letter-spacing:.08em}}
+
+
+/* CODEYSA-STP official emblem-led visual identity
+   Palette sampled from the official orange, charcoal, silver and bronze logo. */
+:root{
+  --navy:#252321;
+  --gold:#e65300;
+  --gold2:#f0782b;
+  --ink:#252321;
+  --muted:#6e6a65;
+  --paper:#f6f4f1;
+  --line:#ded9d2;
+  --green:#a85b17;
+  --stp-orange:#e65300;
+  --stp-charcoal:#252321;
+  --stp-silver:#c9c5bf;
+  --stp-bronze:#9b4b16;
+  --shadow:0 18px 48px rgba(37,35,33,.13);
+}
+header{background:rgba(37,35,33,.98);border-bottom:3px solid var(--stp-orange)}
+.topbar{background:#171615;border-bottom:2px solid var(--stp-orange);color:#e6e1da}
+.brand-mark{border-color:var(--stp-orange);color:var(--stp-orange)}
+.brand-copy small{color:#f3a16f}
+.nav-links a:hover,.nav-links a.active{color:#ff9a5b}
+.nav-cta,.btn-gold{background:var(--stp-orange);color:#fff}
+.nav-cta:hover,.btn-gold:hover{background:#c74600;color:#fff}
+.hero,.page-hero{background:linear-gradient(120deg,#242220 0%,#49301f 58%,#a9440c 100%);border-top:4px solid var(--stp-orange)}
+.eyebrow,.breadcrumb a{color:#ff9a5b}
+.hero-panel{border-top:4px solid var(--stp-orange)}
+.big-number,.slide-content h1 em,.slider-dot.active{color:#ff9a5b}
+.slider-arrow{background:#252321c9}
+.slider-arrow:hover{background:var(--stp-orange);color:#fff}
+.slide-shade{background:linear-gradient(90deg,rgba(24,22,20,.94) 0%,rgba(37,31,27,.78) 48%,rgba(37,31,27,.2) 100%),linear-gradient(0deg,rgba(24,22,20,.3),transparent 45%)}
+.section.soft,.directory-section{background:#f6f4f1}
+.card,.converter-card,.finder-card,form{border-color:#ded9d2}
+.card-icon{background:#f8e5d8;color:#a9440c}
+.pill{background:#f8e7dc;color:#923d0b;border:1px solid #e9b99d}
+.category{border-left-color:var(--stp-orange)}
+.tick,.directory-sector,.directory-enquire,.card-link,.flyer-link{color:#b34b0c}
+.info-band,.directory-disclaimer,.opportunity-dialog-notice{background:#fbefe6;border-color:#e7b38f;color:#5c3826}
+.cta-band,.contact-panel,.visual-card,.partner-mark-card{background:linear-gradient(135deg,#292725,#623416 72%,#a9440c);border-top:4px solid var(--stp-orange)}
+.visual-card .flag{filter:saturate(.9)}
+.currency-section{background:linear-gradient(120deg,#252321,#49301f)}
+.converter-heading .eyebrow{color:#b34b0c}
+.live-indicator{color:#9a4a19}
+.live-indicator i{background:#d96b2b}
+.conversion-result{background:#f5eee8}
+.conversion-result strong,.finder-result strong,.faq-list summary{color:#8e3c0c}
+.directory-tag{background:#f8e5d8;color:#873b12;border:1px solid #e9b99d}
+.directory-details{color:#8e3c0c;border-color:#dfb49b;background:#fbf3ed}
+.directory-details:hover{background:#f5e1d4;border-color:#e65300}
+.faq-list details[open]{border-color:var(--stp-orange)}
+footer{background:#171615;border-top:4px solid var(--stp-orange)}
+.footer-bottom{border-color:#ffffff35}
+.partner-section{background:#f0ede9}
+.partner-layout h2{color:#302b27}
+.opportunity-dialog::backdrop{background:#211c19b8}
+.opportunity-dialog-close{color:#8e3c0c}
+.opportunity-dialog-meta{color:#a64a13}
+.opportunity-dialog-enquire{background:var(--stp-orange);color:#fff}
+.opportunity-dialog-enquire:hover{background:#c74600}
+.directory-reset{color:#8e3c0c}
+.notice{border-left-color:var(--stp-orange)}
+.check-list li:before{background:#f8e5d8;color:#a9440c}
+.brand-logo{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.28)}
+@media(prefers-reduced-motion:no-preference){
+  .btn,.nav-cta,.directory-details{transition:background .2s ease,color .2s ease,border-color .2s ease}
+}
