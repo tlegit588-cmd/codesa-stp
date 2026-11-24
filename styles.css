@@ -17,3 +17,10 @@
 
 /* Floating WhatsApp brand contact shortcut */
 .floating-whatsapp{position:fixed;right:22px;bottom:22px;z-index:9999;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;background:#25D366;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.25);border:3px solid #fff;transition:transform .2s ease,box-shadow .2s ease}.floating-whatsapp svg{width:35px;height:35px}.floating-whatsapp:hover{transform:translateY(-4px) scale(1.04);box-shadow:0 12px 30px rgba(0,0,0,.3)}.floating-whatsapp:focus-visible{outline:3px solid #071b43;outline-offset:4px}@media(max-width:600px){.floating-whatsapp{width:56px;height:56px;right:15px;bottom:16px}.floating-whatsapp svg{width:32px;height:32px}}
+
+/* Business directory opportunity imagery */
+.directory-card{overflow:hidden;display:flex;flex-direction:column;}
+.directory-photo{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin:0 0 12px;background:#e7edf0;}
+.directory-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.directory-card h3{margin:0;}
+@media(max-width:640px){.directory-photo{aspect-ratio:16/10;}}
