@@ -138,3 +138,39 @@ footer{background:#171615;border-top:4px solid var(--stp-orange)}
 @media(prefers-reduced-motion:no-preference){
   .btn,.nav-cta,.directory-details{transition:background .2s ease,color .2s ease,border-color .2s ease}
 }
+
+
+/* Final brand-consistency pass: remove legacy blue tones */
+:root{
+  --navy:#252321;
+  --gold:#e65300;
+  --gold2:#ff9a5b;
+  --ink:#242220;
+  --muted:#6e6a65;
+  --paper:#f6f4f1;
+  --line:#ded9d2;
+  --shadow:0 18px 48px rgba(37,35,33,.12);
+}
+.topbar{color:#f8e5d8}
+header{background:rgba(37,35,33,.97)}
+.brand small{color:#e6e1da}
+.nav-links a{color:#f5eee8}
+.nav-links a:hover,.nav-links a.active{color:#ff9a5b}
+.nav-cta,.btn-gold{background:#e65300;color:#fff}
+.btn-outline{border-color:#f3a16f;color:#fff}
+.slide-shade{background:linear-gradient(90deg,rgba(25,23,21,.94) 0%,rgba(37,35,33,.78) 48%,rgba(37,35,33,.2) 100%),linear-gradient(0deg,rgba(25,23,21,.3),transparent 45%)}
+.slide-content p{color:#f5eee8}
+.slider-arrow{background:rgba(37,35,33,.78)}
+.slider-arrow:hover{background:#e65300;color:#fff}
+.partner-section{background:#f6f4f1}
+.partner-caption,.partner-mark-card small{color:#f8e5d8}
+.currency-section{background:linear-gradient(135deg,#252321,#49301f);color:#fff}
+.currency-intro>p{color:#e6e1da}
+.currency-facts{color:#f8e5d8}
+.directory-section{background:#f6f4f1}
+.directory-card{box-shadow:0 8px 24px rgba(37,35,33,.06)}
+.directory-details{border-color:#ded9d2;background:#fbefe6;color:#873b12}
+.directory-details:hover{background:#f8e5d8;border-color:#e65300}
+.opportunity-dialog::backdrop{background:rgba(37,35,33,.72)}
+.opportunity-dialog-close{background:#f0ede9;color:#252321}
+.floating-whatsapp:focus-visible{outline-color:#e65300}
