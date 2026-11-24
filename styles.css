@@ -233,3 +233,24 @@ header{background:rgba(37,35,33,.97)}
 .salon-form-status{min-height:1.4em;color:#9e430f;font-size:.9rem}
 @media(max-width:760px){.salon-hero-grid{grid-template-columns:1fr;gap:25px}.salon-photo-wrap,.salon-photo-wrap img{min-height:260px}.salon-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.salon-flow-head{display:block}.salon-step-indicator{margin-top:16px}.salon-submit-row{align-items:stretch;flex-direction:column}.salon-submit-row .btn{width:100%}}
 @media(max-width:440px){.salon-service-grid,.salon-fields{grid-template-columns:1fr}.salon-flow{padding:17px}.salon-service{padding:14px}}
+
+
+/* Clear blue hyperlink styling for all footer navigation and contact links */
+footer .footer-grid a:not(.brand),
+footer .footer-grid a:not(.brand):visited{
+  color:#60a5fa;
+  text-decoration:underline;
+  text-decoration-color:#60a5fa88;
+  text-underline-offset:3px;
+  transition:color .18s ease,text-decoration-color .18s ease;
+}
+footer .footer-grid a:not(.brand):hover,
+footer .footer-grid a:not(.brand):focus-visible{
+  color:#93c5fd;
+  text-decoration-color:#93c5fd;
+}
+footer .footer-grid a:not(.brand):focus-visible{
+  outline:2px solid #93c5fd;
+  outline-offset:3px;
+  border-radius:3px;
+}
