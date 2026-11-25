@@ -42,7 +42,7 @@ async function route(request, env) {
   if (path==="/api/login" && method==="POST") {
     const b=await body(request); if (!b || !validEmail(b.email) || typeof b.password!=="string") return fail("Enter your email and password.");
     const u=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(b.email.toLowerCase()).first();
-    if (!u || !(await passwordHash(b.password,u.password_salt)).localeCompare(u.password_hash)===0) return fail("Email or password is incorrect.",401);
+    if (!u || (await passwordHash(b.password,u.password_salt)) !== u.password_hash) return fail("Email or password is incorrect.",401);
     if (u.status!=="active") return fail(u.status==="pending"?"Supplier account awaiting approval.":"This account is not active.",403);
     const token=randomToken(), expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().replace("T"," ").slice(0,19);
     await env.DB.prepare("INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)").bind(crypto.randomUUID(),u.id,await digest(token),expires).run();
