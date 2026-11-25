@@ -47,6 +47,27 @@
 .tree-footer-cta{background:linear-gradient(120deg,#075522,#0c7330);border-radius:24px;color:#fff;padding:32px;display:flex;justify-content:space-between;align-items:center;gap:20px}
 .tree-footer-cta p{color:#e1f0e5;margin-bottom:0}
 @media(max-width:800px){.tree-hero-grid,.tree-two{grid-template-columns:1fr}.tree-product-art{min-height:300px}.tree-facts{grid-template-columns:1fr}.tree-footer-cta{align-items:flex-start;flex-direction:column}.tree-hero{padding:55px 0}}
+
+.tree-gallery{background:#071e12;color:#fff;border-radius:26px;padding:clamp(18px,4vw,34px);overflow:hidden}
+.tree-gallery-head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:22px}
+.tree-gallery-head h2{color:#fff;margin:10px 0;font-size:clamp(1.8rem,3.5vw,2.7rem)}
+.tree-gallery-head p{color:#c8ddce;max-width:650px;margin:0}
+.tree-slideshow{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:22px;align-items:stretch}
+.tree-slide-stage{position:relative;min-height:520px;background:#020b06;border-radius:18px;display:grid;place-items:center;overflow:hidden}
+.tree-slide-stage img{display:block;max-width:100%;width:100%;height:520px;object-fit:contain;background:#020b06}
+.tree-slide-caption{position:absolute;left:0;right:0;bottom:0;padding:45px 20px 18px;background:linear-gradient(transparent,#00170dcc);color:#fff}
+.tree-slide-caption strong{display:block;font-size:1.08rem}.tree-slide-caption span{font-size:.88rem;color:#d7e7dc}
+.tree-slide-side{display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+.tree-slide-counter{font-size:.82rem;color:#d4e6d8;letter-spacing:.08em;text-transform:uppercase}
+.tree-slide-description{font-size:1.04rem;line-height:1.6;color:#e4efe7}
+.tree-slide-controls{display:flex;gap:10px;flex-wrap:wrap}
+.tree-slide-controls button,.tree-slide-play{border:1px solid #ffffff55;background:#ffffff12;color:#fff;border-radius:12px;padding:12px 16px;font:inherit;font-weight:750;cursor:pointer}
+.tree-slide-controls button:hover,.tree-slide-play:hover{background:#ffffff25}
+.tree-slide-dots{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.tree-slide-dots button{width:10px;height:10px;border:0;border-radius:50%;background:#779381;padding:0;cursor:pointer}
+.tree-slide-dots button[aria-current="true"]{background:#ffce00;transform:scale(1.25)}
+.tree-gallery-credit{margin:16px 2px 0;color:#b9d0c0;font-size:.8rem}
+@media(max-width:800px){.tree-gallery-head{display:block}.tree-slideshow{grid-template-columns:1fr}.tree-slide-stage{min-height:420px}.tree-slide-stage img{height:420px}.tree-slide-side{gap:12px}.tree-slide-controls{justify-content:space-between}}
 </style>
 </head>
 <body>
@@ -72,7 +93,32 @@
 </div>
 <p class="tree-source" style="margin-top:20px">Supplier reference: <a href="https://4tree-global.com/en-ng/homepage-nigeria/" target="_blank" rel="noopener">4Tree Nigeria official website</a> · <a href="https://4tree-global.com/en-ng/product-nigeria/" target="_blank" rel="noopener">Product and ordering information</a>.</p>
 </div></section>
-<section class="tree-section soft" id="distribution"><div class="container">
+
+<section class="tree-section">
+<div class="container">
+<div class="tree-gallery" aria-label="CODEYSA-STP 4Tree field demonstration photo slideshow">
+<div class="tree-gallery-head">
+<div><span class="tree-kicker">CODEYSA-STP field documentation</span><h2>4Tree in Action</h2><p>Product presentations and agricultural demonstration photographs from CODEYSA-STP field activities.</p></div>
+</div>
+<div class="tree-slideshow">
+<div>
+<div class="tree-slide-stage">
+<img id="tree-gallery-image" src="assets/4tree/01-cacao-product-demonstration.jpg" alt="4Tree product presented beside cacao pods during a CODEYSA-STP field demonstration" loading="lazy">
+<div class="tree-slide-caption"><strong id="tree-gallery-title">4Tree product with cacao pods</strong><span id="tree-gallery-subtitle">CODEYSA-STP field photographs</span></div>
+</div>
+<div class="tree-slide-dots" id="tree-gallery-dots" aria-label="Choose a slideshow photograph"></div>
+</div>
+<div class="tree-slide-side">
+<div><div class="tree-slide-counter" id="tree-gallery-counter" aria-live="polite">Photograph 1 of 10</div><p class="tree-slide-description" id="tree-gallery-description">A close look at the 4Tree Efficiency Enhancer package in a cacao-growing environment.</p></div>
+<div>
+<div class="tree-slide-controls"><button type="button" id="tree-gallery-prev" aria-label="Previous photograph">← Previous</button><button type="button" id="tree-gallery-next" aria-label="Next photograph">Next →</button></div>
+<button type="button" class="tree-slide-play" id="tree-gallery-toggle" aria-pressed="true" style="margin-top:10px;width:100%">Ⅱ Pause slideshow</button>
+<p class="tree-gallery-credit">Photographs supplied by CODEYSA-STP. Images document product presentations and field activities; they are not independent evidence of product efficacy or yield results.</p>
+</div>
+</div>
+</div>
+</div>
+</section>\n<section class="tree-section soft" id="distribution"><div class="container">
 <div class="tree-section-head"><span class="pill">Business development</span><h2>Build a responsible distribution network</h2><p>We welcome enquiries from agricultural retailers, farmer groups, cooperatives, agribusiness operators and potential regional partners interested in learning about 4Tree.</p></div>
 <div class="tree-two">
 <div class="tree-panel"><h3>Who can enquire?</h3><ul class="tree-list"><li>Agricultural input retailers and wholesalers</li><li>Farmer associations and cooperatives</li><li>Farm owners and commercial growers</li><li>Regional sales and logistics partners</li><li>Entrepreneurs exploring an agricultural distribution business</li></ul></div>
