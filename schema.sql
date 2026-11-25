@@ -1,0 +1,29 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS users (
+ id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+ password_hash TEXT NOT NULL, password_salt TEXT NOT NULL,
+ role TEXT NOT NULL CHECK(role IN ('buyer','supplier','admin')),
+ status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','pending','rejected','suspended')),
+ created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role,status);
+CREATE TABLE IF NOT EXISTS sessions (
+ id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL,
+ created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
+CREATE TABLE IF NOT EXISTS supplier_profiles (
+ user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ business_name TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT 'São Tomé and Príncipe',
+ description TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', website TEXT NOT NULL DEFAULT '',
+ updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS products (
+ id TEXT PRIMARY KEY, supplier_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ name TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL,
+ unit TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL DEFAULT 'São Tomé and Príncipe',
+ status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','published','rejected')),
+ created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(status,created_at);
