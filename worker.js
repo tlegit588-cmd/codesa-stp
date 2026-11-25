@@ -22,7 +22,12 @@ function safeText(v,max=160) { return typeof v==="string" ? v.trim().slice(0,max
 async function requireUser(request,env) { const u=await userFor(request,env); return u || null; }
 async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method;
-  if (path==="/api/health") return json({ok:true,service:"CODEYSA marketplace API"});
+  if (path==="/api/health") {
+    const result={ok:true,service:"CODEYSA marketplace API",databaseBinding:!!env.DB,assetsBinding:!!env.ASSETS};
+    if(env.DB){try{await env.DB.prepare("SELECT 1 AS ok").first();result.database="connected";}catch(e){console.error("D1 health check failed:",e?.stack||e);result.database="error";}}
+    else result.database="missing";
+    return json(result,result.database==="connected"?200:503);
+  }
   if (!path.startsWith("/api/")) return env.ASSETS.fetch(request);
   if (method==="OPTIONS") return new Response(null,{status:204,headers:{Allow:"GET,POST,PUT,DELETE,OPTIONS"}});
   if (["POST","PUT","DELETE"].includes(method)) {
@@ -92,4 +97,4 @@ async function route(request, env) {
   }
   return fail("API route not found.",404);
 }
-export default { async fetch(request,env) { try { return await route(request,env); } catch(e) { return json({error:"Service temporarily unavailable."},500); } } };
+export default { async fetch(request,env) { try { return await route(request,env); } catch(e) { console.error("CODEYSA Worker error:",e?.stack||e); return json({error:"Service temporarily unavailable."},500); } } };
