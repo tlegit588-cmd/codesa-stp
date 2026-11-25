@@ -1,0 +1,10 @@
+# Keep server-side code and database setup files out of public static assets
+worker.js
+wrangler.jsonc
+.assetsignore
+schema.sql
+*.sql
+*.md
+.git/
+.github/
+node_modules/
