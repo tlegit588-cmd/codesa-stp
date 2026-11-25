@@ -68,6 +68,26 @@
 .tree-slide-dots button[aria-current="true"]{background:#ffce00;transform:scale(1.25)}
 .tree-gallery-credit{margin:16px 2px 0;color:#b9d0c0;font-size:.8rem}
 @media(max-width:800px){.tree-gallery-head{display:block}.tree-slideshow{grid-template-columns:1fr}.tree-slide-stage{min-height:420px}.tree-slide-stage img{height:420px}.tree-slide-side{gap:12px}.tree-slide-controls{justify-content:space-between}}
+
+.tree-gallery{background:#082f1a;color:#fff;padding:70px 0}
+.tree-gallery .tree-section-head h2{color:#fff}
+.tree-gallery .tree-section-head p{color:#d6e7d9}
+.tree-gallery-shell{position:relative;max-width:1000px;margin:0 auto;border:1px solid #ffffff24;border-radius:24px;overflow:hidden;background:#031d10;box-shadow:0 22px 60px #00180d66}
+.tree-gallery-stage{position:relative;min-height:320px;aspect-ratio:16/9;display:grid;place-items:center}
+.tree-gallery-stage img{display:block;width:100%;height:100%;max-height:620px;position:absolute;inset:0;object-fit:contain;background:#031d10;opacity:0;transition:opacity .45s ease}
+.tree-gallery-stage img.is-active{opacity:1}
+.tree-gallery-caption{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:16px 20px;background:#0c4224}
+.tree-gallery-caption strong{display:block;color:#fff}
+.tree-gallery-caption span{font-size:.85rem;color:#d5e7d9}
+.tree-gallery-controls{display:flex;align-items:center;gap:10px}
+.tree-gallery-controls button,.tree-gallery-dot{border:1px solid #ffffff66;background:#ffffff12;color:#fff;border-radius:999px;min-width:40px;height:40px;cursor:pointer;font:inherit}
+.tree-gallery-controls button:hover,.tree-gallery-dot[aria-current="true"]{background:#ffce00;color:#142b19;border-color:#ffce00}
+.tree-gallery-dots{display:flex;justify-content:center;gap:8px;padding:15px;flex-wrap:wrap}
+.tree-gallery-dot{min-width:10px;width:10px;height:10px;padding:0;border:0;background:#ffffff55}
+.tree-gallery-dot[aria-current="true"]{width:26px}
+.tree-gallery-credit{font-size:.82rem;color:#c9dfcf;text-align:center;margin:16px 0 0}
+@media(max-width:650px){.tree-gallery{padding:52px 0}.tree-gallery-stage{aspect-ratio:4/5;min-height:300px}.tree-gallery-caption{align-items:flex-start;flex-direction:column}.tree-gallery-controls{width:100%;justify-content:space-between}}
+
 </style>
 </head>
 <body>
@@ -118,7 +138,33 @@
 </div>
 </div>
 </div>
-</section>\n<section class="tree-section soft" id="distribution"><div class="container">
+</section>\n
+<section class="tree-gallery" id="codeysa-4tree-gallery">
+ <div class="container">
+  <div class="tree-section-head"><span class="tree-kicker">CODEYSA-STP field gallery</span><h2>4Tree in Action</h2><p>Real photographs shared by CODEYSA-STP, showing product presentations, agricultural settings and field-team activities.</p></div>
+  <div class="tree-gallery-shell" aria-label="CODEYSA-STP 4Tree photo slideshow">
+   <div class="tree-gallery-stage" id="tree-gallery-stage">
+    <img class="is-active" src="assets/4tree/01-cacao-product-demonstration.jpg" alt="4Tree products presented beside cacao pods during a CODEYSA-STP field demonstration" loading="eager" decoding="async">
+    <img src="assets/4tree/02-closeup-4tree-products-cacao.jpg" alt="Close view of 4Tree Efficiency Enhancer and Booster products beside cacao pods" loading="lazy" decoding="async">
+    <img src="assets/4tree/03-product-and-farm-fruit.jpg" alt="4Tree products displayed with harvested farm fruit" loading="lazy" decoding="async">
+    <img src="assets/4tree/04-tomato-farm-demonstration.jpg" alt="4Tree product presentation in a tomato-growing greenhouse" loading="lazy" decoding="async">
+    <img src="assets/4tree/05-codeysa-4tree-field-team.jpg" alt="CODEYSA-STP and 4Tree representatives at an agricultural field visit" loading="lazy" decoding="async">
+    <img src="assets/4tree/06-farmer-product-demonstration.jpg" alt="Field representative holding 4Tree products beside a cacao tree" loading="lazy" decoding="async">
+    <img src="assets/4tree/07-4tree-products-pineapple-farm.jpg" alt="4Tree Efficiency Enhancer and Booster products displayed among pineapple plants" loading="lazy" decoding="async">
+    <img src="assets/4tree/08-field-team-4tree-branding.jpg" alt="Agricultural field team wearing 4Tree branded clothing" loading="lazy" decoding="async">
+    <img src="assets/4tree/09-watermelon-farm-product-display.jpg" alt="4Tree products displayed beside watermelons in a field" loading="lazy" decoding="async">
+    <img src="assets/4tree/10-product-range-pineapple-farm.jpg" alt="4Tree product range displayed among pineapple leaves" loading="lazy" decoding="async">
+   </div>
+   <div class="tree-gallery-caption"><div><strong id="tree-gallery-title">Cacao field product demonstration</strong><span id="tree-gallery-count">Photograph 1 of 10 · CODEYSA-STP</span></div><div class="tree-gallery-controls"><button type="button" id="tree-gallery-prev" aria-label="Previous photograph">←</button><button type="button" id="tree-gallery-play" aria-label="Pause slideshow" aria-pressed="true">Ⅱ</button><button type="button" id="tree-gallery-next" aria-label="Next photograph">→</button></div></div>
+   <div class="tree-gallery-dots" id="tree-gallery-dots" aria-label="Choose a photograph">
+    <button class="tree-gallery-dot" type="button" aria-label="Show photograph 1" aria-current="true"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 2" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 3" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 4" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 5" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 6" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 7" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 8" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 9" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 10" aria-current="false"></button>
+   </div>
+  </div>
+  <p class="tree-gallery-credit">Photographs supplied by CODEYSA-STP. Images show field activities and product presentations; they are not, by themselves, independent evidence of product performance.</p>
+ </div>
+</section>
+
+<section class="tree-section soft" id="distribution"><div class="container">
 <div class="tree-section-head"><span class="pill">Business development</span><h2>Build a responsible distribution network</h2><p>We welcome enquiries from agricultural retailers, farmer groups, cooperatives, agribusiness operators and potential regional partners interested in learning about 4Tree.</p></div>
 <div class="tree-two">
 <div class="tree-panel"><h3>Who can enquire?</h3><ul class="tree-list"><li>Agricultural input retailers and wholesalers</li><li>Farmer associations and cooperatives</li><li>Farm owners and commercial growers</li><li>Regional sales and logistics partners</li><li>Entrepreneurs exploring an agricultural distribution business</li></ul></div>
@@ -165,5 +211,28 @@
 </div></section>
 </main>
 <footer><div class="container"><div class="footer-grid"><div><strong>CODEYSA-STP</strong><p>Travel, business and investment support in São Tomé and Príncipe.</p></div><div><strong>Explore</strong><a href="index.html">Home</a><a href="investment.html">Business &amp; Investment</a><a href="4tree.html">4Tree Agriculture</a></div><div><strong>Contact</strong><a href="mailto:Codeysadenis@gmail.com">Codeysadenis@gmail.com</a><a href="https://wa.me/2399860074">WhatsApp CODEYSA-STP</a></div></div><div class="footer-bottom"><span>© <span data-year></span> CODEYSA-STP. All rights reserved.</span><span>Product details and commercial terms subject to supplier confirmation.</span></div></div></footer>
+
+<script>
+(function(){
+ const root=document.getElementById('codeysa-4tree-gallery'); if(!root)return;
+ const images=[...root.querySelectorAll('.tree-gallery-stage img')];
+ const dots=[...root.querySelectorAll('.tree-gallery-dot')];
+ const titles=['Cacao field product demonstration','Close-up: 4Tree products and cacao','Product presentation with farm fruit','Tomato farm demonstration','CODEYSA-STP and 4Tree field team','Farmer product demonstration','4Tree products in a pineapple farm','4Tree branded field team','Watermelon farm product display','4Tree product range among pineapple plants'];
+ const title=root.querySelector('#tree-gallery-title'),count=root.querySelector('#tree-gallery-count');
+ const play=root.querySelector('#tree-gallery-play'); let index=0,timer=null,paused=false;
+ function show(n){index=(n+images.length)%images.length;images.forEach((im,i)=>im.classList.toggle('is-active',i===index));dots.forEach((d,i)=>d.setAttribute('aria-current',i===index?'true':'false'));title.textContent=titles[index];count.textContent='Photograph '+(index+1)+' of '+images.length+' · CODEYSA-STP';}
+ function stop(){if(timer)clearInterval(timer);timer=null;}
+ function start(){stop();if(!paused)timer=setInterval(()=>show(index+1),5000);}
+ root.querySelector('#tree-gallery-prev').addEventListener('click',()=>{show(index-1);start()});
+ root.querySelector('#tree-gallery-next').addEventListener('click',()=>{show(index+1);start()});
+ dots.forEach((d,i)=>d.addEventListener('click',()=>{show(i);start()}));
+ play.addEventListener('click',()=>{paused=!paused;play.textContent=paused?'▶':'Ⅱ';play.setAttribute('aria-label',paused?'Play slideshow':'Pause slideshow');play.setAttribute('aria-pressed',String(!paused));start()});
+ root.addEventListener('mouseenter',stop);root.addEventListener('mouseleave',start);
+ root.addEventListener('focusin',stop);root.addEventListener('focusout',start);
+ document.addEventListener('visibilitychange',()=>document.hidden?stop():start());
+ show(0);start();
+})();
+</script>
+
 <script src="app.js"></script>
 </body></html>
