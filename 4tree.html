@@ -100,7 +100,7 @@
 <main>
 <section class="tree-gallery" id="codeysa-4tree-gallery">
  <div class="container">
-  <div class="tree-section-head"><span class="tree-kicker">CODEYSA-STP field gallery</span><h2>4Tree in Action</h2><p>Real photographs shared by CODEYSA-STP, showing product presentations, agricultural settings and field-team activities.</p></div>
+  <div class="tree-section-head"><span class="tree-kicker">4Tree Agricultural Portfolio</span><h2>Agricultural Product & Field Portfolio</h2><p>A curated photographic record of product presentations, crop environments and agricultural engagement activities.</p></div>
   <div class="tree-gallery-shell" aria-label="CODEYSA-STP 4Tree photo slideshow">
    <div class="tree-gallery-stage" id="tree-gallery-stage">
     <img class="is-active" src="assets/4tree/01-cacao-product-demonstration.jpg" alt="4Tree products presented beside cacao pods during a CODEYSA-STP field demonstration" loading="eager" decoding="async">
@@ -114,12 +114,12 @@
     <img src="assets/4tree/09-watermelon-farm-product-display.jpg" alt="4Tree products displayed beside watermelons in a field" loading="lazy" decoding="async">
     <img src="assets/4tree/10-product-range-pineapple-farm.jpg" alt="4Tree product range displayed among pineapple leaves" loading="lazy" decoding="async">
    </div>
-   <div class="tree-gallery-caption"><div><strong id="tree-gallery-title">Cacao field product demonstration</strong><span id="tree-gallery-count">Photograph 1 of 10 · CODEYSA-STP</span></div><div class="tree-gallery-controls"><button type="button" id="tree-gallery-prev" aria-label="Previous photograph">←</button><button type="button" id="tree-gallery-play" aria-label="Pause slideshow" aria-pressed="true">Ⅱ</button><button type="button" id="tree-gallery-next" aria-label="Next photograph">→</button></div></div>
+   <div class="tree-gallery-caption"><div><strong id="tree-gallery-title">Cacao Product Presentation</strong><span id="tree-gallery-count">Image 1 of 10 · CODEYSA-STP</span></div><div class="tree-gallery-controls"><button type="button" id="tree-gallery-prev" aria-label="Previous photograph">←</button><button type="button" id="tree-gallery-play" aria-label="Pause slideshow" aria-pressed="true">Ⅱ</button><button type="button" id="tree-gallery-next" aria-label="Next photograph">→</button></div></div>
    <div class="tree-gallery-dots" id="tree-gallery-dots" aria-label="Choose a photograph">
     <button class="tree-gallery-dot" type="button" aria-label="Show photograph 1" aria-current="true"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 2" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 3" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 4" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 5" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 6" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 7" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 8" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 9" aria-current="false"></button><button class="tree-gallery-dot" type="button" aria-label="Show photograph 10" aria-current="false"></button>
    </div>
   </div>
-  <p class="tree-gallery-credit">Photographs supplied by CODEYSA-STP. Images show field activities and product presentations; they are not, by themselves, independent evidence of product performance.</p>
+  <p class="tree-gallery-credit">Photographic documentation provided by CODEYSA-STP. Images are illustrative and do not independently substantiate product efficacy or performance claims.</p>
  </div>
 </section>
 <section class="tree-hero"><div class="container tree-hero-grid">
@@ -194,7 +194,7 @@
  const root=document.getElementById('codeysa-4tree-gallery'); if(!root)return;
  const images=[...root.querySelectorAll('.tree-gallery-stage img')];
  const dots=[...root.querySelectorAll('.tree-gallery-dot')];
- const titles=['Cacao field product demonstration','Close-up: 4Tree products and cacao','Product presentation with farm fruit','Tomato farm demonstration','CODEYSA-STP and 4Tree field team','Farmer product demonstration','4Tree products in a pineapple farm','4Tree branded field team','Watermelon farm product display','4Tree product range among pineapple plants'];
+ const titles=['Cacao Product Presentation','Product Range — Cacao','Agricultural Product Display','Tomato Cultivation Site','Agricultural Field Engagement','Product Information Session','Product Display — Pineapple Farm','Field Team Engagement','Product Display — Watermelon Farm','Product Range — Pineapple Farm'];
  const title=root.querySelector('#tree-gallery-title'),count=root.querySelector('#tree-gallery-count');
  const play=root.querySelector('#tree-gallery-play'); let index=0,timer=null,paused=false;
  function show(n){index=(n+images.length)%images.length;images.forEach((im,i)=>im.classList.toggle('is-active',i===index));dots.forEach((d,i)=>d.setAttribute('aria-current',i===index?'true':'false'));title.textContent=titles[index];count.textContent='Photograph '+(index+1)+' of '+images.length+' · CODEYSA-STP';}
