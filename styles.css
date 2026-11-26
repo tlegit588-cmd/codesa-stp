@@ -350,3 +350,67 @@ header .nav-links a:active{
 @media(max-width:420px){.market-product-grid{grid-template-columns:1fr}.market-product-image{height:150px}.market-product-body p{min-height:0}.market-toolbar{align-items:flex-start;flex-direction:column}}
 
 .market-home-promo{background:linear-gradient(115deg,#075522,#08752b);color:#fff;padding:42px 0}.market-home-promo .container{display:flex;align-items:center;justify-content:space-between;gap:25px}.market-home-promo .container>div:first-child{max-width:760px}.market-home-promo h2{font-size:clamp(1.8rem,3vw,2.5rem);margin:10px 0}.market-home-promo p{color:#e1efe4}.market-promo-mark{width:130px;height:130px;flex:0 0 130px;border:1px solid #ffffff55;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:2.5rem}.market-promo-mark span{font-size:.58rem;letter-spacing:.1em;font-weight:900;color:#ffdc42}@media(max-width:600px){.market-home-promo .container{align-items:flex-start;flex-direction:column}.market-promo-mark{display:none}}
+
+
+/* CODEYSA international corporate identity — charcoal, champagne, ivory */
+:root{
+ --navy:#252321;--gold:#c58a52;--gold2:#e3bd91;--ink:#252321;
+ --muted:#716b64;--paper:#f7f5f1;--line:#e4ded6;
+ --green:#9b7048;--stp-orange:#b87945;--stp-charcoal:#252321;
+ --stp-silver:#c9c3ba;--stp-bronze:#9b7048;
+ --shadow:0 18px 48px rgba(37,35,33,.10);
+}
+body{background:#fff;color:var(--ink)}
+.topbar{background:#191817;color:#e7e0d7;border:0}
+header{background:rgba(37,35,33,.98);border-bottom:1px solid #b98a60}
+.brand-logo{background:#fff;border:1px solid #c9c3ba}
+.brand-copy small{color:#d8b28b}
+.nav-links a{color:#eee9e2}
+.nav-links a:hover,.nav-links a.active{color:#e3bd91}
+.nav-cta,.btn-gold{background:#b87945;color:#fff}
+.nav-cta:hover,.btn-gold:hover{background:#986039;color:#fff}
+.hero,.page-hero{background:linear-gradient(120deg,#252321 0%,#39332d 60%,#72513a 100%);border-top:0}
+.home-slider{background:#252321}
+.slide-shade{background:linear-gradient(90deg,rgba(25,23,21,.94) 0%,rgba(37,35,33,.76) 48%,rgba(37,35,33,.22) 100%),linear-gradient(0deg,rgba(25,23,21,.3),transparent 45%)}
+.eyebrow,.breadcrumb a,.slide-content h1 em{color:#e3bd91}
+.hero-panel{border:1px solid #ffffff35;border-top:3px solid #b87945}
+.big-number{color:#e3bd91}
+.slider-arrow{background:#252321c9}
+.slider-arrow:hover{background:#b87945;color:#fff}
+.slider-dot.active,.slider-progress span{background:#b87945}
+.section.soft,.directory-section,.partner-section{background:#f7f5f1}
+.card-icon{background:#f2e9df;color:#805b3c}
+.pill{background:#f3e9df;color:#765437;border:1px solid #dfc8b1}
+.category{border-left-color:#b87945}
+.tick,.directory-sector,.directory-enquire,.card-link,.flyer-link{color:#986039}
+.info-band,.directory-disclaimer,.opportunity-dialog-notice{background:#f7f0e8;border-color:#dfc8b1;color:#574535}
+.cta-band,.contact-panel,.visual-card,.partner-mark-card{background:linear-gradient(135deg,#252321,#40372f 72%,#72513a);border-top:3px solid #b87945}
+.currency-section{background:linear-gradient(120deg,#252321,#40372f)}
+.currency-intro h2{color:#fff}
+.converter-heading .eyebrow{color:#986039}
+.conversion-result strong,.finder-result strong,.faq-list summary{color:#765437}
+.directory-tag{background:#f3e9df;color:#765437;border:1px solid #dfc8b1}
+.directory-details{color:#765437;border-color:#dfc8b1;background:#f8f4ef}
+.directory-details:hover{background:#f0e5d9;border-color:#b87945}
+.faq-list details[open]{border-color:#b87945}
+footer{background:#191817;border-top:2px solid #b87945}
+.footer-grid p,.footer-grid a{color:#d0c8be}
+.footer-bottom{border-color:#ffffff25;color:#aaa197}
+.opportunity-dialog::backdrop{background:#252321a8}
+.opportunity-dialog-close{color:#765437}
+.opportunity-dialog-meta{color:#986039}
+.opportunity-dialog-enquire{background:#b87945;color:#fff}
+.partner-layout h2{color:#252321}
+.partner-mark-card{border-color:#b87945}
+.market-home-promo{background:#f7f5f1;color:#252321}
+.market-promo-mark{color:#986039}
+.account-tabs button{background:#f7f5f1}
+.account-tabs button[aria-selected=true]{background:#252321;color:#fff;border-color:#b87945}
+.admin-stat strong{color:#986039}
+.admin-tabs button[aria-selected=true],.admin-tabs button.active{background:#252321;color:#fff}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #b87945;outline-offset:3px}
+.floating-whatsapp{background:#25D366}
+@media(max-width:900px){.nav-links{background:#252321}}
+/* Agriculture page uses CODEYSA identity, not national palette */
+:root{--tree:#34302b;--tree2:#72513a;--leaf:#eee5da;--sun:#b87945}
+.tree-hero{background:linear-gradient(120deg,#252321,#72513a)!important}
