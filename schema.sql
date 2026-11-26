@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
  id TEXT PRIMARY KEY, supplier_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  name TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL,
  unit TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL DEFAULT 'São Tomé and Príncipe',
+ image_url TEXT NOT NULL DEFAULT '',
  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','published','rejected')),
  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
