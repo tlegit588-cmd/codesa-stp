@@ -145,9 +145,22 @@ async function route(request, env) {
     }
     if(path==="/api/admin/orders" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
-      const base="SELECT id,reference,rfq_id,buyer_name,buyer_email,product,quantity,destination,status,admin_note,created_at,updated_at FROM orders";
-      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY created_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE status=? ORDER BY created_at DESC LIMIT 300").bind(status).all();
+      const base="SELECT o.id,o.reference,o.rfq_id,o.buyer_name,o.buyer_email,o.product,o.quantity,o.destination,o.status,o.admin_note,o.supplier_id,o.created_at,o.updated_at,sp.business_name AS supplier_name FROM orders o LEFT JOIN supplier_profiles sp ON sp.user_id=o.supplier_id";
+      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY o.created_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE o.status=? ORDER BY o.created_at DESC LIMIT 300").bind(status).all();
       return json({orders:rows.results});
+    }
+    if(path.startsWith("/api/admin/orders/") && path.endsWith("/assign") && method==="POST") {
+      const parts=path.split("/"), id=decodeURIComponent(parts[parts.length-2]||""), b=await body(request);
+      const supplierId=safeText(b?.supplier_id,80);
+      if(!supplierId) return fail("Choose a supplier.");
+      const supplier=await env.DB.prepare("SELECT u.id FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(supplierId).first();
+      if(!supplier) return fail("Choose an approved supplier with a completed business profile.",404);
+      const order=await env.DB.prepare("SELECT id,status FROM orders WHERE id=?").bind(id).first();
+      if(!order) return fail("Order not found.",404);
+      if(["delivered","cancelled"].includes(order.status)) return fail("Closed orders cannot be reassigned.");
+      await env.DB.prepare("UPDATE orders SET supplier_id=?,status=CASE WHEN status='pending' THEN 'confirmed' ELSE status END,updated_at=datetime('now') WHERE id=?").bind(supplierId,id).run();
+      await audit(env,user.id,"order.assigned","order",id,"Assigned to supplier "+supplierId);
+      return json({ok:true,message:"Order assigned to supplier."});
     }
     if(path==="/api/admin/orders" && method==="POST") {
       const b=await body(request), rfqId=safeText(b?.rfq_id,80);
@@ -207,6 +220,21 @@ async function route(request, env) {
       return json({users:rows.results});
     }
     return fail("Admin route not found.",404);
+  }
+  if(path==="/api/supplier/orders" && method==="GET") {
+    if(user.role!=="supplier") return fail("Supplier account required.",403);
+    const rows=await env.DB.prepare("SELECT id,reference,buyer_name,product,quantity,destination,status,supplier_note,created_at,updated_at FROM orders WHERE supplier_id=? ORDER BY created_at DESC LIMIT 100").bind(user.id).all();
+    return json({orders:rows.results});
+  }
+  if(path.startsWith("/api/supplier/orders/") && method==="POST") {
+    if(user.role!=="supplier") return fail("Supplier account required.",403);
+    const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
+    if(!["confirmed","processing","shipped"].includes(b?.status)) return fail("Suppliers may update orders to confirmed, processing or shipped.");
+    const note=safeText(b.supplier_note,1000);
+    const result=await env.DB.prepare("UPDATE orders SET status=?,supplier_note=?,updated_at=datetime('now') WHERE id=? AND supplier_id=? AND status NOT IN ('delivered','cancelled')").bind(b.status,note,id,user.id).run();
+    if(!result.meta?.changes) return fail("Assigned order not found or already closed.",404);
+    await audit(env,user.id,"supplier.order."+b.status,"order",id,note||"Supplier updated fulfilment status");
+    return json({ok:true,message:"Order fulfilment updated."});
   }
   if(path==="/api/supplier/profile" && method==="GET") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
