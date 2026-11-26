@@ -27,3 +27,15 @@ CREATE TABLE IF NOT EXISTS products (
  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_products_status ON products(status,created_at);
+
+-- Sprint 3: administrator audit trail
+CREATE TABLE IF NOT EXISTS audit_logs (
+ id TEXT PRIMARY KEY,
+ actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ action TEXT NOT NULL,
+ target_type TEXT NOT NULL,
+ target_id TEXT NOT NULL,
+ details TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
