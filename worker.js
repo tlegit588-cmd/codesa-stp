@@ -21,7 +21,8 @@ function validEmail(v) { return typeof v==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]
 function safeText(v,max=160) { return typeof v==="string" ? v.trim().slice(0,max) : ""; }
 async function requireUser(request,env) { const u=await userFor(request,env); return u || null; }
 async function audit(env,actorId,action,targetType,targetId,details="") {
-  await env.DB.prepare("INSERT INTO audit_logs (id,actor_id,action,target_type,target_id,details) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),actorId,action,targetType,targetId,safeText(details,500)).run();
+  try { await env.DB.prepare("INSERT INTO audit_logs (id,actor_id,action,target_type,target_id,details) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),actorId,action,targetType,targetId,safeText(details,500)).run(); }
+  catch(e) { console.error("Audit log write failed:",e?.stack||e); }
 }
 
 async function route(request, env) {
