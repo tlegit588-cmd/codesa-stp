@@ -40,3 +40,20 @@ CREATE TABLE IF NOT EXISTS audit_logs (
  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
+
+
+-- Sprint 4.2: buyer requests for quotation (RFQs)
+CREATE TABLE IF NOT EXISTS rfqs (
+ id TEXT PRIMARY KEY,
+ product TEXT NOT NULL,
+ quantity TEXT NOT NULL DEFAULT '',
+ destination TEXT NOT NULL,
+ requirements TEXT NOT NULL DEFAULT '',
+ buyer_name TEXT NOT NULL,
+ buyer_contact TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','in_review','contacted','quoted','closed')),
+ admin_note TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT (datetime('now')),
+ updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_rfqs_status_created ON rfqs(status,created_at);
