@@ -93,6 +93,17 @@ async function route(request, env) {
     return json({ok:true},200,{"set-cookie":cookie("",0)});
   }
   if (path==="/api/me" && method==="GET") { const u=await userFor(request,env); return u?json({user:u}):fail("Please sign in.",401); }
+  if (path==="/api/products" && method==="GET") {
+    const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.created_at,sp.business_name,sp.country FROM products p JOIN supplier_profiles sp ON sp.user_id=p.supplier_id JOIN users u ON u.id=p.supplier_id WHERE p.status='published' AND u.status='active' AND sp.business_name<>'' ORDER BY p.created_at DESC LIMIT 100").all();
+    return json({products:rows.results});
+  }
+  if (path.startsWith("/api/suppliers/") && method==="GET") {
+    const id=decodeURIComponent(path.split("/").pop()||"");
+    const supplier=await env.DB.prepare("SELECT u.id,sp.business_name,sp.country,sp.description,sp.phone,sp.website FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(id).first();
+    if(!supplier) return fail("Supplier storefront not found.",404);
+    const products=await env.DB.prepare("SELECT id,name,category,description,unit,origin,image_url,created_at FROM products WHERE supplier_id=? AND status='published' ORDER BY created_at DESC LIMIT 100").bind(id).all();
+    return json({supplier,products:products.results});
+  }
   const user=await requireUser(request,env); if(!user) return fail("Please sign in.",401);
   if(path.startsWith("/api/admin/")) {
     if(user.role!=="admin") return fail("Administrator access required.",403);
@@ -154,10 +165,11 @@ async function route(request, env) {
   if(path==="/api/products" && method==="POST") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
     const b=await body(request); if(!b) return fail("Invalid request body.");
-    const name=safeText(b.name,140), category=safeText(b.category,80), description=safeText(b.description,1200);
+    const name=safeText(b.name,140), category=safeText(b.category,80), description=safeText(b.description,1200), imageUrl=safeText(b.image_url,500);
     if(name.length<2 || !category || description.length<10) return fail("Add a product name, category and description.");
+    if(imageUrl && (!/^https:\/\//i.test(imageUrl) || imageUrl.length>500)) return fail("Product image must use a valid HTTPS URL.");
     const id=crypto.randomUUID();
-    await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,status) VALUES (?,?,?,?,?,?,?,'pending')").bind(id,user.id,name,category,description,safeText(b.unit,40),safeText(b.origin,100)||"São Tomé and Príncipe").run();
+    await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,status) VALUES (?,?,?,?,?,?,?,?,'pending')").bind(id,user.id,name,category,description,safeText(b.unit,40),safeText(b.origin,100)||"São Tomé and Príncipe",imageUrl).run();
     return json({ok:true,message:"Product submitted for review.",id},201);
   }
   if(path==="/api/admin/suppliers" && method==="GET") {
