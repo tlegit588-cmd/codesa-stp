@@ -414,3 +414,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 /* Agriculture page uses CODEYSA identity, not national palette */
 :root{--tree:#34302b;--tree2:#72513a;--leaf:#eee5da;--sun:#b87945}
 .tree-hero{background:linear-gradient(120deg,#252321,#72513a)!important}
+
+
+/* Final page-specific brand consistency overrides */
+.market-hero{background:linear-gradient(120deg,#252321 0%,#40372f 58%,#72513a 100%)!important}
+.market-kicker,.market-copy h1 em{color:#e3bd91!important}
+.market-hero-art{filter:saturate(.65)}
+.market-category.active,.market-category:hover{background:#f3e9df;color:#765437}
+.market-side-note{background:#f7f0e8}
+.market-side-note a,.market-product-category,.market-product-link{color:#986039}
+.market-product-image.services{background:linear-gradient(135deg,#34302b,#72513a)}
+.market-rfq-section{background:#f7f5f1}
+.supplier-join-card{background:linear-gradient(115deg,#252321,#72513a);border-top:3px solid #b87945}
+.supplier-join-card p{color:#e7e0d7}
+.market-toolbar,.market-toolbar strong{color:#625b53}
+.market-product-meta{border-color:#e4ded6;color:#716b64}
+.market-empty{border-color:#d4c9bc}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
