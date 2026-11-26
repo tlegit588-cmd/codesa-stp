@@ -48,9 +48,14 @@ async function route(request, env) {
     if(!admin) return fail("No administrator account was found for that email.",404);
     const salt=randomToken(), hash=await passwordHash(password,salt);
     await env.DB.prepare("UPDATE users SET password_hash=?,password_salt=? WHERE id=? AND role='admin'").bind(hash,salt,admin.id).run();
+    const saved=await env.DB.prepare("SELECT password_hash,password_salt,name,email,role,status FROM users WHERE id=? AND role='admin'").bind(admin.id).first();
+    const verified=saved && saved.password_salt===salt && saved.password_hash===await passwordHash(password,saved.password_salt);
+    if(!verified) return fail("Password was saved but verification failed. Please contact support.",500);
     await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(admin.id).run();
-    await audit(env,admin.id,"admin.password_reset","user",admin.id,"Administrator password reset; existing sessions revoked");
-    return json({ok:true,message:"Administrator password reset. Please sign in again."});
+    const token=randomToken(), expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().replace("T"," ").slice(0,19);
+    await env.DB.prepare("INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)").bind(crypto.randomUUID(),admin.id,await digest(token),expires).run();
+    await audit(env,admin.id,"admin.password_reset","user",admin.id,"Administrator password reset; hash verified and old sessions revoked");
+    return json({ok:true,verified:true,message:"Password reset and verified. You are now signed in.",user:{id:admin.id,name:saved.name,email:saved.email,role:saved.role}},200,{"set-cookie":cookie(token,SESSION_DAYS*86400)});
   }
   if (path==="/api/admin/bootstrap" && method==="POST") {
     const b=await body(request);
