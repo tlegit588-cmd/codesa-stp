@@ -115,6 +115,11 @@ async function route(request, env) {
     return json({supplier,products:products.results});
   }
   const user=await requireUser(request,env); if(!user) return fail("Please sign in.",401);
+  if(path==="/api/orders" && method==="GET") {
+    if(user.role!=="buyer") return fail("Buyer account required.",403);
+    const rows=await env.DB.prepare("SELECT reference,product,quantity,destination,status,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
+    return json({orders:rows.results});
+  }
   if(path.startsWith("/api/admin/")) {
     if(user.role!=="admin") return fail("Administrator access required.",403);
     if(path==="/api/admin/overview" && method==="GET") {
@@ -137,6 +142,37 @@ async function route(request, env) {
       if(!result.meta?.changes) return fail("Sourcing request not found.",404);
       await audit(env,user.id,"rfq."+b.status,"rfq",id,note||"Status updated");
       return json({ok:true,message:"Sourcing request updated."});
+    }
+    if(path==="/api/admin/orders" && method==="GET") {
+      const status=url.searchParams.get("status")||"all";
+      const base="SELECT id,reference,rfq_id,buyer_name,buyer_email,product,quantity,destination,status,admin_note,created_at,updated_at FROM orders";
+      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY created_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE status=? ORDER BY created_at DESC LIMIT 300").bind(status).all();
+      return json({orders:rows.results});
+    }
+    if(path==="/api/admin/orders" && method==="POST") {
+      const b=await body(request), rfqId=safeText(b?.rfq_id,80);
+      if(!rfqId) return fail("A buyer enquiry is required.");
+      const rfq=await env.DB.prepare("SELECT * FROM rfqs WHERE id=?").bind(rfqId).first();
+      if(!rfq) return fail("Buyer enquiry not found.",404);
+      const existing=await env.DB.prepare("SELECT reference FROM orders WHERE rfq_id=?").bind(rfqId).first();
+      if(existing) return fail("An order already exists for this enquiry: "+existing.reference,409);
+      if(rfq.status!=="quoted") return fail("Set the buyer enquiry status to quoted before creating an order.");
+      const reference="CDS-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+crypto.randomUUID().slice(0,8).toUpperCase();
+      const buyerEmail=rfq.buyer_contact.includes("@")?rfq.buyer_contact.trim().toLowerCase():"";
+      const buyer=buyerEmail?await env.DB.prepare("SELECT id FROM users WHERE email=? AND role='buyer'").bind(buyerEmail).first():null;
+      const id=crypto.randomUUID();
+      await env.DB.prepare("INSERT INTO orders (id,reference,rfq_id,buyer_user_id,buyer_name,buyer_email,product,quantity,destination,status) VALUES (?,?,?,?,?,?,?,?,?,'pending')").bind(id,reference,rfq.id,buyer?.id||null,rfq.buyer_name,buyerEmail,rfq.product,rfq.quantity,rfq.destination).run();
+      await audit(env,user.id,"order.created","order",id,"Created from enquiry "+rfq.id+"; "+reference);
+      return json({ok:true,reference,message:"Order created."},201);
+    }
+    if(path.startsWith("/api/admin/orders/") && method==="POST") {
+      const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
+      if(!["pending","confirmed","processing","shipped","delivered","cancelled"].includes(b?.status)) return fail("Invalid order status.");
+      const note=safeText(b.admin_note,1200);
+      const result=await env.DB.prepare("UPDATE orders SET status=?,admin_note=?,updated_at=datetime('now') WHERE id=?").bind(b.status,note,id).run();
+      if(!result.meta?.changes) return fail("Order not found.",404);
+      await audit(env,user.id,"order."+b.status,"order",id,note||"Order status updated");
+      return json({ok:true,message:"Order updated."});
     }
     if(path==="/api/admin/products" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
