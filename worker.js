@@ -20,6 +20,10 @@ async function body(request) { try { return await request.json(); } catch { retu
 function validEmail(v) { return typeof v==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length<=190; }
 function safeText(v,max=160) { return typeof v==="string" ? v.trim().slice(0,max) : ""; }
 async function requireUser(request,env) { const u=await userFor(request,env); return u || null; }
+async function audit(env,actorId,action,targetType,targetId,details="") {
+  await env.DB.prepare("INSERT INTO audit_logs (id,actor_id,action,target_type,target_id,details) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),actorId,action,targetType,targetId,safeText(details,500)).run();
+}
+
 async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method;
   if (path==="/api/health") {
@@ -33,6 +37,18 @@ async function route(request, env) {
   if (["POST","PUT","DELETE"].includes(method)) {
     const origin=request.headers.get("Origin");
     if (origin && origin!==url.origin) return fail("Cross-origin request rejected.",403);
+  }
+  if (path==="/api/admin/bootstrap" && method==="POST") {
+    const b=await body(request);
+    if(!env.ADMIN_BOOTSTRAP_TOKEN || request.headers.get("x-admin-bootstrap-token")!==env.ADMIN_BOOTSTRAP_TOKEN) return fail("Invalid bootstrap authorization.",403);
+    const existing=await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first();
+    if(existing) return fail("An administrator already exists. Bootstrap is closed.",409);
+    const name=safeText(b?.name,100), email=safeText(b?.email,190).toLowerCase(), password=b?.password;
+    if(name.length<2 || !validEmail(email) || typeof password!=="string" || password.length<16 || password.length>128) return fail("Provide a name, valid email and password of at least 16 characters.");
+    const id=crypto.randomUUID(), salt=randomToken(), hash=await passwordHash(password,salt);
+    await env.DB.prepare("INSERT INTO users (id,name,email,password_hash,password_salt,role,status) VALUES (?,?,?,?,?,'admin','active')").bind(id,name,email,hash,salt).run();
+    await audit(env,id,"admin.bootstrap","user",id,"Initial administrator account created");
+    return json({ok:true,message:"Administrator created. Sign in through the account portal."},201);
   }
   if (path==="/api/register" && method==="POST") {
     const b=await body(request); if (!b) return fail("Invalid request body.");
@@ -59,6 +75,48 @@ async function route(request, env) {
   }
   if (path==="/api/me" && method==="GET") { const u=await userFor(request,env); return u?json({user:u}):fail("Please sign in.",401); }
   const user=await requireUser(request,env); if(!user) return fail("Please sign in.",401);
+  if(path.startsWith("/api/admin/")) {
+    if(user.role!=="admin") return fail("Administrator access required.",403);
+    if(path==="/api/admin/overview" && method==="GET") {
+      const keys=["users","suppliers","pendingSuppliers","pendingProducts","publishedProducts","rejectedProducts"];
+      const sql=["SELECT COUNT(*) AS n FROM users","SELECT COUNT(*) AS n FROM users WHERE role='supplier'","SELECT COUNT(*) AS n FROM users WHERE role='supplier' AND status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='published'","SELECT COUNT(*) AS n FROM products WHERE status='rejected'"];
+      const values=await Promise.all(sql.map(q=>env.DB.prepare(q).first()));
+      return json({stats:Object.fromEntries(keys.map((k,i)=>[k,values[i].n]))});
+    }
+    if(path==="/api/admin/products" && method==="GET") {
+      const status=url.searchParams.get("status")||"all";
+      const base="SELECT p.*,u.name AS supplier_name,u.email AS supplier_email,sp.business_name FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id";
+      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY p.created_at DESC LIMIT 200").all():await env.DB.prepare(base+" WHERE p.status=? ORDER BY p.created_at DESC LIMIT 200").bind(status).all();
+      return json({products:rows.results});
+    }
+    if(path.startsWith("/api/admin/products/") && method==="POST") {
+      const id=path.split("/").pop(), b=await body(request);
+      if(!["published","rejected","pending"].includes(b?.status)) return fail("Invalid product status.");
+      await env.DB.prepare("UPDATE products SET status=? WHERE id=?").bind(b.status,id).run();
+      await audit(env,user.id,"product."+b.status,"product",id,b.note||"");
+      return json({ok:true,message:"Product status updated."});
+    }
+    if(path==="/api/admin/suppliers" && method==="GET") {
+      const rows=await env.DB.prepare("SELECT u.id,u.name,u.email,u.status,u.created_at,p.business_name,p.country FROM users u LEFT JOIN supplier_profiles p ON p.user_id=u.id WHERE u.role='supplier' ORDER BY u.created_at DESC").all();
+      return json({suppliers:rows.results});
+    }
+    if(path.startsWith("/api/admin/suppliers/") && method==="POST") {
+      const id=path.split("/").pop(), b=await body(request);
+      if(!["active","rejected","suspended","pending"].includes(b?.status)) return fail("Invalid supplier status.");
+      await env.DB.prepare("UPDATE users SET status=? WHERE id=? AND role='supplier'").bind(b.status,id).run();
+      await audit(env,user.id,"supplier."+b.status,"user",id,b.note||"");
+      return json({ok:true,message:"Supplier status updated."});
+    }
+    if(path==="/api/admin/audit" && method==="GET") {
+      const rows=await env.DB.prepare("SELECT a.id,a.action,a.target_type,a.target_id,a.details,a.created_at,u.name AS actor_name FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.created_at DESC LIMIT 100").all();
+      return json({logs:rows.results});
+    }
+    if(path==="/api/admin/users" && method==="GET") {
+      const rows=await env.DB.prepare("SELECT id,name,email,role,status,created_at FROM users ORDER BY created_at DESC LIMIT 200").all();
+      return json({users:rows.results});
+    }
+    return fail("Admin route not found.",404);
+  }
   if(path==="/api/supplier/profile" && method==="GET") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
     const profile=await env.DB.prepare("SELECT * FROM supplier_profiles WHERE user_id=?").bind(user.id).first();
