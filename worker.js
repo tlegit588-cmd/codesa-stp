@@ -93,6 +93,16 @@ async function route(request, env) {
     return json({ok:true},200,{"set-cookie":cookie("",0)});
   }
   if (path==="/api/me" && method==="GET") { const u=await userFor(request,env); return u?json({user:u}):fail("Please sign in.",401); }
+  if (path==="/api/rfqs" && method==="POST") {
+    const b=await body(request); if(!b) return fail("Invalid request body.");
+    if(safeText(b.website,180)) return fail("Request could not be accepted.",400);
+    const product=safeText(b.product,180), destination=safeText(b.destination,100), buyerName=safeText(b.buyer_name,120), buyerContact=safeText(b.buyer_contact,180);
+    const quantity=safeText(b.quantity,100), requirements=safeText(b.requirements,1800);
+    if(product.length<2 || destination.length<2 || buyerName.length<2 || buyerContact.length<5) return fail("Complete the product, destination, name and contact fields.");
+    const id=crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO rfqs (id,product,quantity,destination,requirements,buyer_name,buyer_contact,status) VALUES (?,?,?,?,?,?,?,'new')").bind(id,product,quantity,destination,requirements,buyerName,buyerContact).run();
+    return json({ok:true,message:"Your sourcing request has been received. Our team will review it and contact you.",id},201);
+  }
   if (path==="/api/products" && method==="GET") {
     const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.created_at,sp.business_name,sp.country FROM products p JOIN supplier_profiles sp ON sp.user_id=p.supplier_id JOIN users u ON u.id=p.supplier_id WHERE p.status='published' AND u.status='active' AND sp.business_name<>'' ORDER BY p.created_at DESC LIMIT 100").all();
     return json({products:rows.results});
@@ -108,10 +118,25 @@ async function route(request, env) {
   if(path.startsWith("/api/admin/")) {
     if(user.role!=="admin") return fail("Administrator access required.",403);
     if(path==="/api/admin/overview" && method==="GET") {
-      const keys=["users","suppliers","pendingSuppliers","pendingProducts","publishedProducts","rejectedProducts"];
-      const sql=["SELECT COUNT(*) AS n FROM users","SELECT COUNT(*) AS n FROM users WHERE role='supplier'","SELECT COUNT(*) AS n FROM users WHERE role='supplier' AND status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='published'","SELECT COUNT(*) AS n FROM products WHERE status='rejected'"];
+      const keys=["users","suppliers","pendingSuppliers","pendingProducts","publishedProducts","rejectedProducts","newRfqs"];
+      const sql=["SELECT COUNT(*) AS n FROM users","SELECT COUNT(*) AS n FROM users WHERE role='supplier'","SELECT COUNT(*) AS n FROM users WHERE role='supplier' AND status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='published'","SELECT COUNT(*) AS n FROM products WHERE status='rejected'","SELECT COUNT(*) AS n FROM rfqs WHERE status='new'"];
       const values=await Promise.all(sql.map(q=>env.DB.prepare(q).first()));
       return json({stats:Object.fromEntries(keys.map((k,i)=>[k,values[i].n]))});
+    }
+    if(path==="/api/admin/rfqs" && method==="GET") {
+      const status=url.searchParams.get("status")||"all";
+      const base="SELECT id,product,quantity,destination,requirements,buyer_name,buyer_contact,status,admin_note,created_at,updated_at FROM rfqs";
+      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY created_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE status=? ORDER BY created_at DESC LIMIT 300").bind(status).all();
+      return json({rfqs:rows.results});
+    }
+    if(path.startsWith("/api/admin/rfqs/") && method==="POST") {
+      const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
+      if(!["new","in_review","contacted","quoted","closed"].includes(b?.status)) return fail("Invalid enquiry status.");
+      const note=safeText(b.admin_note,1200);
+      const result=await env.DB.prepare("UPDATE rfqs SET status=?,admin_note=?,updated_at=datetime('now') WHERE id=?").bind(b.status,note,id).run();
+      if(!result.meta?.changes) return fail("Sourcing request not found.",404);
+      await audit(env,user.id,"rfq."+b.status,"rfq",id,note||"Status updated");
+      return json({ok:true,message:"Sourcing request updated."});
     }
     if(path==="/api/admin/products" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
