@@ -38,6 +38,19 @@ async function route(request, env) {
     const origin=request.headers.get("Origin");
     if (origin && origin!==url.origin) return fail("Cross-origin request rejected.",403);
   }
+  if (path==="/api/admin/password-reset" && method==="POST") {
+    const b=await body(request);
+    if(!env.ADMIN_BOOTSTRAP_TOKEN || request.headers.get("x-admin-bootstrap-token")!==env.ADMIN_BOOTSTRAP_TOKEN) return fail("Invalid reset authorization.",403);
+    const email=safeText(b?.email,190).toLowerCase(), password=b?.password;
+    if(!validEmail(email) || typeof password!=="string" || password.length<16 || password.length>128) return fail("Enter the administrator email and a new password of at least 16 characters.");
+    const admin=await env.DB.prepare("SELECT id FROM users WHERE email=? AND role='admin'").bind(email).first();
+    if(!admin) return fail("No administrator account was found for that email.",404);
+    const salt=randomToken(), hash=await passwordHash(password,salt);
+    await env.DB.prepare("UPDATE users SET password_hash=?,password_salt=? WHERE id=? AND role='admin'").bind(hash,salt,admin.id).run();
+    await env.DB.prepare("DELETE FROM sessions WHERE user_id=?").bind(admin.id).run();
+    await audit(env,admin.id,"admin.password_reset","user",admin.id,"Administrator password reset; existing sessions revoked");
+    return json({ok:true,message:"Administrator password reset. Please sign in again."});
+  }
   if (path==="/api/admin/bootstrap" && method==="POST") {
     const b=await body(request);
     if(!env.ADMIN_BOOTSTRAP_TOKEN || request.headers.get("x-admin-bootstrap-token")!==env.ADMIN_BOOTSTRAP_TOKEN) return fail("Invalid bootstrap authorization.",403);
