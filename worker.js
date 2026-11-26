@@ -74,10 +74,17 @@ async function route(request, env) {
     const name=safeText(b.name,100), email=safeText(b.email,190).toLowerCase(), password=b.password, role=b.role;
     if (name.length<2 || !validEmail(email) || typeof password!=="string" || password.length<12 || password.length>128) return fail("Enter your name, a valid email and a password of at least 12 characters.");
     if (!["buyer","supplier"].includes(role)) return fail("Choose buyer or supplier account.");
+    const businessName=safeText(b.business_name,140), country=safeText(b.country,100)||"São Tomé and Príncipe", description=safeText(b.description,1200), phone=safeText(b.phone,40), website=safeText(b.website,200);
+    if(role==="supplier" && (businessName.length<2 || description.length<10 || (website && !/^https:\/\//i.test(website)))) return fail("Complete your business name and description. Website must use HTTPS.");
     const id=crypto.randomUUID(), salt=randomToken(), hash=await passwordHash(password,salt), status=role==="supplier"?"pending":"active";
-    try { await env.DB.prepare("INSERT INTO users (id,name,email,password_hash,password_salt,role,status) VALUES (?,?,?,?,?,?,?)").bind(id,name,email,hash,salt,role,status).run(); }
-    catch { return fail("That email may already be registered.",409); }
-    return json({message:role==="supplier"?"Supplier application received. Your account is pending administrator review.":"Buyer account created. You can now sign in.",status},201);
+    try {
+      await env.DB.prepare("INSERT INTO users (id,name,email,password_hash,password_salt,role,status) VALUES (?,?,?,?,?,?,?)").bind(id,name,email,hash,salt,role,status).run();
+      if(role==="supplier") await env.DB.prepare("INSERT INTO supplier_profiles (user_id,business_name,country,description,phone,website) VALUES (?,?,?,?,?,?)").bind(id,businessName,country,description,phone,website).run();
+    } catch {
+      if(role==="supplier") { try { await env.DB.prepare("DELETE FROM users WHERE id=?").bind(id).run(); } catch {} }
+      return fail("Application could not be saved. Check the details and try again. That email may already be registered.",409);
+    }
+    return json({message:role==="supplier"?"Supplier application received with your business profile. Your account is pending administrator review.":"Buyer account created. You can now sign in.",status},201);
   }
   if (path==="/api/login" && method==="POST") {
     const b=await body(request); if (!b || !validEmail(b.email) || typeof b.password!=="string") return fail("Enter your email and password.");
