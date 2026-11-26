@@ -73,7 +73,10 @@ CREATE TABLE IF NOT EXISTS orders (
  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','processing','shipped','delivered','cancelled')),
  admin_note TEXT NOT NULL DEFAULT '',
  created_at TEXT NOT NULL DEFAULT (datetime('now')),
- updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+ updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+ supplier_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ supplier_note TEXT NOT NULL DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS idx_orders_supplier_created ON orders(supplier_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer_created ON orders(buyer_email,created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status,created_at);
