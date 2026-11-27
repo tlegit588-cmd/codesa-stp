@@ -17,8 +17,10 @@ CREATE TABLE IF NOT EXISTS supplier_profiles (
  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
  business_name TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT 'São Tomé and Príncipe',
  description TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', website TEXT NOT NULL DEFAULT '',
+ verification_note TEXT NOT NULL DEFAULT '', verified_at TEXT,
  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_supplier_verified ON supplier_profiles(verified_at);
 CREATE TABLE IF NOT EXISTS products (
  id TEXT PRIMARY KEY, supplier_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  name TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL,
