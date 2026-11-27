@@ -121,15 +121,23 @@ async function route(request, env) {
     return json({ok:true,message:"Your sourcing request has been received. Our team will review it and contact you.",id},201);
   }
   if (path==="/api/products" && method==="GET") {
-    const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.created_at,sp.business_name,sp.country FROM products p JOIN supplier_profiles sp ON sp.user_id=p.supplier_id JOIN users u ON u.id=p.supplier_id WHERE p.status='published' AND u.status='active' AND sp.business_name<>'' ORDER BY p.created_at DESC LIMIT 100").all();
+    const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.created_at,sp.business_name,sp.country,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p JOIN supplier_profiles sp ON sp.user_id=p.supplier_id JOIN users u ON u.id=p.supplier_id WHERE p.status='published' AND u.status='active' AND sp.business_name<>'' ORDER BY p.created_at DESC LIMIT 100").all();
     return json({products:rows.results});
   }
   if (path.startsWith("/api/suppliers/") && method==="GET") {
     const id=decodeURIComponent(path.split("/").pop()||"");
     const supplier=await env.DB.prepare("SELECT u.id,u.status,sp.business_name,sp.country,sp.description,sp.phone,sp.website,sp.verified_at FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(id).first();
     if(!supplier) return fail("Supplier storefront not found.",404);
-    const products=await env.DB.prepare("SELECT id,name,category,description,unit,origin,image_url,created_at FROM products WHERE supplier_id=? AND status='published' ORDER BY created_at DESC LIMIT 100").bind(id).all();
+    const products=await env.DB.prepare("SELECT p.id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.created_at,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p WHERE p.supplier_id=? AND p.status='published' ORDER BY p.created_at DESC LIMIT 100").bind(id).all();
     return json({supplier,products:products.results});
+  }
+  if(path.startsWith("/api/products/") && path.endsWith("/reviews") && method==="GET") {
+    const productId=decodeURIComponent(path.split("/")[3]||"");
+    const product=await env.DB.prepare("SELECT id FROM products WHERE id=? AND status='published'").bind(productId).first();
+    if(!product) return fail("Product not found.",404);
+    const rows=await env.DB.prepare("SELECT r.id,r.rating,r.comment,r.created_at,u.name AS buyer_name FROM product_reviews r JOIN users u ON u.id=r.buyer_id WHERE r.product_id=? AND r.status='published' ORDER BY r.created_at DESC LIMIT 50").bind(productId).all();
+    const summary=await env.DB.prepare("SELECT ROUND(AVG(rating),1) AS average_rating,COUNT(*) AS review_count FROM product_reviews WHERE product_id=? AND status='published'").bind(productId).first();
+    return json({reviews:rows.results,average_rating:summary.average_rating||0,review_count:summary.review_count||0});
   }
   const user=await requireUser(request,env); if(!user) return fail("Please sign in.",401);
   if(path==="/api/notifications" && method==="GET") {
@@ -153,6 +161,30 @@ async function route(request, env) {
     if(!allowed) return fail("You do not have access to this shipment.",403);
     const events=await env.DB.prepare("SELECT status,note,actor_role,created_at FROM order_status_events WHERE order_id=? ORDER BY created_at ASC LIMIT 100").bind(orderId).all();
     return json({order,events:events.results});
+  }
+  if(path==="/api/reviews/eligible" && method==="GET") {
+    if(user.role!=="buyer") return fail("Buyer account required.",403);
+    const rows=await env.DB.prepare("SELECT o.id AS order_id,o.reference,o.product,o.delivered_at,p.id AS product_id,p.name AS product_name FROM orders o JOIN products p ON p.name=o.product AND p.supplier_id=o.supplier_id WHERE o.status='delivered' AND (o.buyer_user_id=? OR lower(o.buyer_email)=?) AND NOT EXISTS (SELECT 1 FROM product_reviews r WHERE r.order_id=o.id) ORDER BY o.delivered_at DESC LIMIT 100").bind(user.id,user.email.toLowerCase()).all();
+    return json({eligible_orders:rows.results});
+  }
+  if(path==="/api/reviews" && method==="POST") {
+    if(user.role!=="buyer") return fail("Buyer account required.",403);
+    const b=await body(request),orderId=safeText(b?.order_id,80),rating=Number(b?.rating),comment=safeText(b?.comment,1500);
+    if(!orderId || !Number.isInteger(rating) || rating<1 || rating>5) return fail("Choose a delivered order and a rating from 1 to 5.");
+    const order=await env.DB.prepare("SELECT o.id,o.reference,o.product,o.supplier_id,o.status,o.buyer_user_id,o.buyer_email,p.id AS product_id FROM orders o JOIN products p ON p.name=o.product AND p.supplier_id=o.supplier_id WHERE o.id=? AND (o.buyer_user_id=? OR lower(o.buyer_email)=?)").bind(orderId,user.id,user.email.toLowerCase()).first();
+    if(!order) return fail("A matching purchased product could not be found for this order.",404);
+    if(order.status!=="delivered") return fail("You can review a product only after its order is delivered.",403);
+    const id=crypto.randomUUID();
+    try {
+      await env.DB.prepare("INSERT INTO product_reviews (id,product_id,order_id,buyer_id,rating,comment) VALUES (?,?,?,?,?,?)").bind(id,order.product_id,orderId,user.id,rating,comment).run();
+    } catch(e) {
+      const existing=await env.DB.prepare("SELECT id FROM product_reviews WHERE order_id=?").bind(orderId).first();
+      if(existing) return fail("This delivered order has already been reviewed.",409);
+      throw e;
+    }
+    await audit(env,user.id,"review.submitted","product",order.product_id,"Verified purchase review submitted for "+order.reference);
+    await notifyAdmins(env,"message","New product review","A verified-purchase review is awaiting moderation for "+order.product+".",null);
+    return json({ok:true,message:"Review submitted and awaiting administrator approval.",id},201);
   }
   if(path==="/api/orders" && method==="GET") {
     if(user.role!=="buyer") return fail("Buyer account required.",403);
@@ -208,6 +240,21 @@ async function route(request, env) {
         env.DB.prepare("SELECT sp.business_name,COUNT(o.id) AS order_count FROM orders o JOIN supplier_profiles sp ON sp.user_id=o.supplier_id WHERE o.created_at>=? AND o.created_at<=? GROUP BY o.supplier_id,sp.business_name ORDER BY order_count DESC LIMIT 8").bind(start,end).all()
       ]);
       return json({from,to,orders,rfqs,products,suppliers,monthlyOrders:monthly.results,orderStatuses:orderStatuses.results,rfqStatuses:rfqStatuses.results,topSuppliers:topSuppliers.results});
+    }
+    if(path==="/api/admin/reviews" && method==="GET") {
+      const status=url.searchParams.get("status")||"pending";
+      const base="SELECT r.id,r.product_id,r.order_id,r.buyer_id,r.rating,r.comment,r.status,r.created_at,r.moderated_at,p.name AS product_name,u.name AS buyer_name,u.email AS buyer_email,o.reference AS order_reference FROM product_reviews r JOIN products p ON p.id=r.product_id JOIN users u ON u.id=r.buyer_id JOIN orders o ON o.id=r.order_id";
+      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY r.created_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE r.status=? ORDER BY r.created_at DESC LIMIT 300").bind(status).all();
+      return json({reviews:rows.results});
+    }
+    if(path.startsWith("/api/admin/reviews/") && method==="POST") {
+      const id=decodeURIComponent(path.split("/").pop()||""),b=await body(request);
+      if(!["published","hidden","pending"].includes(b?.status)) return fail("Choose a valid review moderation status.");
+      const review=await env.DB.prepare("SELECT id,product_id,status FROM product_reviews WHERE id=?").bind(id).first();
+      if(!review) return fail("Review not found.",404);
+      await env.DB.prepare("UPDATE product_reviews SET status=?,moderated_by=?,moderated_at=datetime('now'),updated_at=datetime('now') WHERE id=?").bind(b.status,user.id,id).run();
+      await audit(env,user.id,"review."+b.status,"product_review",id,"Review moderation status changed from "+review.status+" to "+b.status);
+      return json({ok:true,message:"Review moderation updated."});
     }
     if(path==="/api/admin/rfqs" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
