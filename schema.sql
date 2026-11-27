@@ -128,3 +128,12 @@ CREATE TABLE IF NOT EXISTS order_status_events (
  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_order_status_events_order ON order_status_events(order_id,created_at);
+
+-- Sprint 5.3: API rate limiting buckets
+CREATE TABLE IF NOT EXISTS api_rate_limits (
+  bucket_key TEXT PRIMARY KEY,
+  window_started_at TEXT NOT NULL,
+  request_count INTEGER NOT NULL DEFAULT 0 CHECK(request_count >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_api_rate_limits_window
+ON api_rate_limits(window_started_at);
