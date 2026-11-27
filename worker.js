@@ -20,6 +20,14 @@ async function body(request) { try { return await request.json(); } catch { retu
 function validEmail(v) { return typeof v==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length<=190; }
 function safeText(v,max=160) { return typeof v==="string" ? v.trim().slice(0,max) : ""; }
 async function rateLimit(env, request, scope, limit, windowSeconds, identity="") {
+  // Opportunistically prune stale buckets without adding a write to every request.
+  if (crypto.getRandomValues(new Uint8Array(1))[0] === 0) {
+    try {
+      await env.DB.prepare("DELETE FROM api_rate_limits WHERE window_started_at < datetime('now','-2 days')").run();
+    } catch (e) {
+      console.error("Rate-limit cleanup failed:", e?.stack || e);
+    }
+  }
   const ip=request.headers.get("CF-Connecting-IP") || "unknown";
   const bucket=await digest(scope+"|"+ip+"|"+identity);
   await env.DB.prepare("INSERT INTO api_rate_limits (bucket_key,window_started_at,request_count) VALUES (?,datetime('now'),1) ON CONFLICT(bucket_key) DO UPDATE SET request_count=CASE WHEN unixepoch('now')-unixepoch(api_rate_limits.window_started_at)>=? THEN 1 ELSE api_rate_limits.request_count+1 END,window_started_at=CASE WHEN unixepoch('now')-unixepoch(api_rate_limits.window_started_at)>=? THEN datetime('now') ELSE api_rate_limits.window_started_at END").bind(bucket,windowSeconds,windowSeconds).run();
