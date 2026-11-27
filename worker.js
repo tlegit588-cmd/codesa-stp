@@ -126,6 +126,8 @@ async function route(request, env) {
     const u=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(b.email.trim().toLowerCase()).first();
     if (!u || (await passwordHash(b.password,u.password_salt)) !== u.password_hash) return fail("Email or password is incorrect.",401);
     if (u.status!=="active") return fail(u.status==="pending"?"Supplier account awaiting approval.":"This account is not active.",403);
+    // Remove expired session records during successful sign-in.
+    await env.DB.prepare("DELETE FROM sessions WHERE expires_at <= datetime('now')").run();
     const token=randomToken(), expires=new Date(Date.now()+SESSION_DAYS*86400000).toISOString().replace("T"," ").slice(0,19);
     await env.DB.prepare("INSERT INTO sessions (id,user_id,token_hash,expires_at) VALUES (?,?,?,?)").bind(crypto.randomUUID(),u.id,await digest(token),expires).run();
     return json({user:{id:u.id,name:u.name,email:u.email,role:u.role}},200,{ "set-cookie":cookie(token,SESSION_DAYS*86400) });
