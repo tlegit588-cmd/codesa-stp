@@ -213,8 +213,91 @@ async function route(request, env) {
     await audit(env,user.id,"order.message.sent","order",orderId,"Message sent by "+user.role);
     return json({ok:true,message:"Message sent.",id},201);
   }
+  if(path==="/api/support/cases" && method==="GET") {
+    if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
+    const rows=await env.DB.prepare("SELECT c.id,c.reference,c.order_id,c.reporter_role,c.category,c.subject,c.description,c.status,c.resolution_note,c.created_at,c.updated_at,o.reference AS order_reference FROM support_cases c JOIN orders o ON o.id=c.order_id WHERE c.opened_by=? OR (c.reporter_role='buyer' AND EXISTS (SELECT 1 FROM orders x WHERE x.id=c.order_id AND (x.buyer_user_id=? OR lower(x.buyer_email)=?))) OR (c.reporter_role='supplier' AND EXISTS (SELECT 1 FROM orders x WHERE x.id=c.order_id AND x.supplier_id=?)) ORDER BY c.updated_at DESC LIMIT 100").bind(user.id,user.id,user.email.toLowerCase(),user.id).all();
+    return json({cases:rows.results});
+  }
+  if(path==="/api/support/cases" && method==="POST") {
+    if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
+    const b=await body(request),orderId=safeText(b?.order_id,80),category=safeText(b?.category,40),subject=safeText(b?.subject,160),description=safeText(b?.description,3000);
+    if(!["order_issue","delivery_delay","damaged_goods","missing_items","product_quality","other"].includes(category)) return fail("Choose a valid support category.");
+    if(subject.length<4 || description.length<10) return fail("Enter a subject and a description of at least 10 characters.");
+    const order=await env.DB.prepare("SELECT id,reference,buyer_user_id,buyer_email,supplier_id FROM orders WHERE id=?").bind(orderId).first();
+    if(!order) return fail("Order not found.",404);
+    const isBuyer=user.role==="buyer" && (order.buyer_user_id===user.id || (order.buyer_email||"").toLowerCase()===user.email.toLowerCase());
+    const isSupplier=user.role==="supplier" && order.supplier_id===user.id;
+    if(!isBuyer && !isSupplier) return fail("You do not have access to this order.",403);
+    const id=crypto.randomUUID(),reference="SUP-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+crypto.randomUUID().slice(0,6).toUpperCase();
+    await env.DB.prepare("INSERT INTO support_cases (id,reference,order_id,opened_by,reporter_role,category,subject,description) VALUES (?,?,?,?,?,?,?,?)").bind(id,reference,orderId,user.id,user.role,category,subject,description).run();
+    await env.DB.prepare("INSERT INTO support_case_messages (id,case_id,sender_id,sender_role,message) VALUES (?,?,?,? ,?)").bind(crypto.randomUUID(),id,user.id,user.role,description).run();
+    if(order.buyer_user_id && order.buyer_user_id!==user.id) await notify(env,order.buyer_user_id,"message","Support case opened","A support case was opened for order "+order.reference+".",orderId);
+    if(order.supplier_id && order.supplier_id!==user.id) await notify(env,order.supplier_id,"message","Support case opened","A support case was opened for order "+order.reference+".",orderId);
+    await notifyAdmins(env,"message","New support case",reference+" — "+subject,orderId);
+    await audit(env,user.id,"support_case.opened","support_case",id,reference+" for order "+order.reference);
+    return json({ok:true,id,reference,message:"Support case opened."},201);
+  }
+  if(path.startsWith("/api/support/cases/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
+    if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
+    const parts=path.split("/"),caseId=decodeURIComponent(parts[4]||"");
+    const item=await env.DB.prepare("SELECT c.id,c.reference,c.order_id,c.status,o.buyer_user_id,o.buyer_email,o.supplier_id FROM support_cases c JOIN orders o ON o.id=c.order_id WHERE c.id=?").bind(caseId).first();
+    if(!item) return fail("Support case not found.",404);
+    const allowed=(user.role==="buyer" && (item.opened_by===user.id || item.buyer_user_id===user.id || (item.buyer_email||"").toLowerCase()===user.email.toLowerCase())) || (user.role==="supplier" && item.supplier_id===user.id);
+    if(!allowed) return fail("You do not have access to this support case.",403);
+    if(method==="GET") {
+      const rows=await env.DB.prepare("SELECT m.id,m.sender_id,m.sender_role,m.message,m.created_at,u.name AS sender_name FROM support_case_messages m JOIN users u ON u.id=m.sender_id WHERE m.case_id=? ORDER BY m.created_at ASC LIMIT 300").bind(caseId).all();
+      return json({case:item,messages:rows.results});
+    }
+    if(["resolved","closed"].includes(item.status)) return fail("This support case is closed to new messages.",409);
+    const b=await body(request),message=safeText(b?.message,2000);
+    if(!message) return fail("Write a message before sending.");
+    await env.DB.prepare("INSERT INTO support_case_messages (id,case_id,sender_id,sender_role,message) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(),caseId,user.id,user.role,message).run();
+    await env.DB.prepare("UPDATE support_cases SET updated_at=datetime('now') WHERE id=?").bind(caseId).run();
+    if(item.buyer_user_id && item.buyer_user_id!==user.id) await notify(env,item.buyer_user_id,"message","Support case update","A new message was added to "+item.reference+".",item.order_id);
+    if(item.supplier_id && item.supplier_id!==user.id) await notify(env,item.supplier_id,"message","Support case update","A new message was added to "+item.reference+".",item.order_id);
+    await notifyAdmins(env,"message","Support case message","A participant replied to "+item.reference+".",item.order_id);
+    await audit(env,user.id,"support_case.message","support_case",caseId,"Message sent by "+user.role);
+    return json({ok:true,message:"Support case message sent."},201);
+  }
   if(path.startsWith("/api/admin/")) {
     if(user.role!=="admin") return fail("Administrator access required.",403);
+    if(path==="/api/admin/support-cases" && method==="GET") {
+      const status=url.searchParams.get("status")||"all";
+      const base="SELECT c.id,c.reference,c.order_id,c.opened_by,c.reporter_role,c.category,c.subject,c.description,c.status,c.resolution_note,c.resolved_at,c.created_at,c.updated_at,o.reference AS order_reference,o.product,o.buyer_name,o.supplier_id,bu.name AS reporter_name,sp.business_name AS supplier_name FROM support_cases c JOIN orders o ON o.id=c.order_id JOIN users bu ON bu.id=c.opened_by LEFT JOIN supplier_profiles sp ON sp.user_id=o.supplier_id";
+      const rows=status==="all"?await env.DB.prepare(base+" ORDER BY c.updated_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE c.status=? ORDER BY c.updated_at DESC LIMIT 300").bind(status).all();
+      return json({cases:rows.results});
+    }
+    if(path.startsWith("/api/admin/support-cases/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
+      const parts=path.split("/"),caseId=decodeURIComponent(parts[4]||"");
+      const item=await env.DB.prepare("SELECT id,reference,order_id,status FROM support_cases WHERE id=?").bind(caseId).first();
+      if(!item) return fail("Support case not found.",404);
+      if(method==="GET") {
+        const rows=await env.DB.prepare("SELECT m.id,m.sender_id,m.sender_role,m.message,m.created_at,u.name AS sender_name FROM support_case_messages m JOIN users u ON u.id=m.sender_id WHERE m.case_id=? ORDER BY m.created_at ASC LIMIT 300").bind(caseId).all();
+        return json({case:item,messages:rows.results});
+      }
+      const b=await body(request),message=safeText(b?.message,2000);
+      if(!message) return fail("Write a message before sending.");
+      await env.DB.prepare("INSERT INTO support_case_messages (id,case_id,sender_id,sender_role,message) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(),caseId,user.id,"admin",message).run();
+      await env.DB.prepare("UPDATE support_cases SET updated_at=datetime('now') WHERE id=?").bind(caseId).run();
+      const participants=await env.DB.prepare("SELECT o.buyer_user_id,o.supplier_id,o.id AS order_id FROM orders o JOIN support_cases c ON c.order_id=o.id WHERE c.id=?").bind(caseId).first();
+      if(participants?.buyer_user_id) await notify(env,participants.buyer_user_id,"message","Support case update","The marketplace team replied to "+item.reference+".",item.order_id);
+      if(participants?.supplier_id) await notify(env,participants.supplier_id,"message","Support case update","The marketplace team replied to "+item.reference+".",item.order_id);
+      await audit(env,user.id,"support_case.admin_message","support_case",caseId,"Administrator sent a message");
+      return json({ok:true,message:"Support case message sent."},201);
+    }
+    if(path.startsWith("/api/admin/support-cases/") && method==="POST") {
+      const caseId=decodeURIComponent(path.split("/").pop()||""),b=await body(request);
+      if(!["open","in_review","waiting_supplier","waiting_buyer","resolved","closed"].includes(b?.status)) return fail("Choose a valid support case status.");
+      const note=safeText(b.resolution_note,1200),item=await env.DB.prepare("SELECT id,reference,order_id,status FROM support_cases WHERE id=?").bind(caseId).first();
+      if(!item) return fail("Support case not found.",404);
+      await env.DB.prepare("UPDATE support_cases SET status=?,resolution_note=?,resolved_by=CASE WHEN ? IN ('resolved','closed') THEN ? ELSE NULL END,resolved_at=CASE WHEN ? IN ('resolved','closed') THEN datetime('now') ELSE NULL END,updated_at=datetime('now') WHERE id=?").bind(b.status,note,b.status,user.id,b.status,caseId).run();
+      const participants=await env.DB.prepare("SELECT o.buyer_user_id,o.supplier_id,o.id AS order_id FROM orders o JOIN support_cases c ON c.order_id=o.id WHERE c.id=?").bind(caseId).first();
+      const alert="Support case "+item.reference+" status changed to "+b.status+".";
+      if(participants?.buyer_user_id) await notify(env,participants.buyer_user_id,"message","Support case updated",alert,item.order_id);
+      if(participants?.supplier_id) await notify(env,participants.supplier_id,"message","Support case updated",alert,item.order_id);
+      await audit(env,user.id,"support_case."+b.status,"support_case",caseId,note||"Support case status updated");
+      return json({ok:true,message:"Support case updated."});
+    }
     if(path==="/api/admin/overview" && method==="GET") {
       const keys=["users","suppliers","pendingSuppliers","pendingProducts","publishedProducts","rejectedProducts","newRfqs"];
       const sql=["SELECT COUNT(*) AS n FROM users","SELECT COUNT(*) AS n FROM users WHERE role='supplier'","SELECT COUNT(*) AS n FROM users WHERE role='supplier' AND status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='pending'","SELECT COUNT(*) AS n FROM products WHERE status='published'","SELECT COUNT(*) AS n FROM products WHERE status='rejected'","SELECT COUNT(*) AS n FROM rfqs WHERE status='new'"];
