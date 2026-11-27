@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS orders (
  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
  supplier_id TEXT REFERENCES users(id) ON DELETE SET NULL,
  supplier_note TEXT NOT NULL DEFAULT ''
+,
+ carrier_name TEXT NOT NULL DEFAULT '',
+ tracking_number TEXT NOT NULL DEFAULT '',
+ tracking_url TEXT NOT NULL DEFAULT '',
+ shipped_at TEXT,
+ delivered_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_orders_supplier_created ON orders(supplier_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer_created ON orders(buyer_email,created_at);
@@ -109,3 +115,16 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread
 ON notifications(recipient_id,read_at,created_at);
+
+
+-- Sprint 4.8: shipment and order status history
+CREATE TABLE IF NOT EXISTS order_status_events (
+ id TEXT PRIMARY KEY,
+ order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+ actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+ actor_role TEXT NOT NULL CHECK(actor_role IN ('admin','supplier','system')),
+ status TEXT NOT NULL,
+ note TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_order_status_events_order ON order_status_events(order_id,created_at);
