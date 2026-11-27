@@ -215,7 +215,7 @@ async function route(request, env) {
   }
   if(path==="/api/support/cases" && method==="GET") {
     if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
-    const rows=await env.DB.prepare("SELECT c.id,c.reference,c.order_id,c.reporter_role,c.category,c.subject,c.description,c.status,c.resolution_note,c.created_at,c.updated_at,o.reference AS order_reference FROM support_cases c JOIN orders o ON o.id=c.order_id WHERE c.opened_by=? OR (c.reporter_role='buyer' AND EXISTS (SELECT 1 FROM orders x WHERE x.id=c.order_id AND (x.buyer_user_id=? OR lower(x.buyer_email)=?))) OR (c.reporter_role='supplier' AND EXISTS (SELECT 1 FROM orders x WHERE x.id=c.order_id AND x.supplier_id=?)) ORDER BY c.updated_at DESC LIMIT 100").bind(user.id,user.id,user.email.toLowerCase(),user.id).all();
+    const rows=await env.DB.prepare("SELECT c.id,c.reference,c.order_id,c.reporter_role,c.category,c.subject,c.description,c.status,c.resolution_note,c.created_at,c.updated_at,o.reference AS order_reference FROM support_cases c JOIN orders o ON o.id=c.order_id WHERE c.opened_by=? OR EXISTS (SELECT 1 FROM orders x WHERE x.id=c.order_id AND (x.buyer_user_id=? OR lower(x.buyer_email)=? OR x.supplier_id=?)) ORDER BY c.updated_at DESC LIMIT 100").bind(user.id,user.id,user.email.toLowerCase(),user.id).all();
     return json({cases:rows.results});
   }
   if(path==="/api/support/cases" && method==="POST") {
