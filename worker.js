@@ -116,7 +116,7 @@ async function route(request, env) {
   }
   if (path.startsWith("/api/suppliers/") && method==="GET") {
     const id=decodeURIComponent(path.split("/").pop()||"");
-    const supplier=await env.DB.prepare("SELECT u.id,sp.business_name,sp.country,sp.description,sp.phone,sp.website,sp.verified_at FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(id).first();
+    const supplier=await env.DB.prepare("SELECT u.id,u.status,sp.business_name,sp.country,sp.description,sp.phone,sp.website,sp.verified_at FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(id).first();
     if(!supplier) return fail("Supplier storefront not found.",404);
     const products=await env.DB.prepare("SELECT id,name,category,description,unit,origin,image_url,created_at FROM products WHERE supplier_id=? AND status='published' ORDER BY created_at DESC LIMIT 100").bind(id).all();
     return json({supplier,products:products.results});
