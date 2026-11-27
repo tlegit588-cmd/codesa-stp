@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Marketplace Admin | CODEYSA-STP</title><link rel="icon" href="assets/codeysa-stp-logo.webp"><link rel="stylesheet" href="styles.css"><style>
-:root{--adm-ink:#252321;--adm-bronze:#b87945;--adm-champagne:#e3bd91;--adm-ivory:#f7f5f1;--adm-line:#e8e1d8;--adm-muted:#81786f}
+:root{--adm-ink:#252321;--adm-bronze:#e4772e;--adm-champagne:#f2a45e;--adm-ivory:#f7f5f1;--adm-line:#e8e1d8;--adm-muted:#81786f}
 body{background:var(--adm-ivory);color:var(--adm-ink)}
 .admin-topbar{background:#1e1c1a;color:#e9d8c5;padding:9px 24px;font-size:.76rem;letter-spacing:.14em;text-transform:uppercase}
 .admin-shell{max-width:1600px;margin:auto;padding:28px;display:grid;grid-template-columns:248px minmax(0,1fr);gap:26px;align-items:start}
@@ -13,7 +13,7 @@ body{background:var(--adm-ivory);color:var(--adm-ink)}
 .admin-tabs{display:grid;gap:5px;margin:0}
 .admin-tabs button{display:flex;align-items:center;gap:11px;width:100%;text-align:left;border:0;border-radius:10px;background:transparent;color:#d8d0c8;padding:12px 13px;font-size:.86rem;font-weight:650;cursor:pointer}
 .admin-tabs button:hover{background:#ffffff12;color:#fff}
-.admin-tabs button[aria-selected=true]{background:linear-gradient(100deg,#b87945,#95613b);color:#fff;box-shadow:0 7px 18px #0002}
+.admin-tabs button[aria-selected=true]{background:linear-gradient(100deg,#f08a3c,#c65e1c);color:#fff;box-shadow:0 7px 18px #0002}
 .admin-side-foot{border-top:1px solid #ffffff20;margin-top:24px;padding:18px 10px 4px;color:#c9b7a5;font-size:.76rem;line-height:1.6}
 .admin-main{min-width:0}
 .admin-head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:2px 0 20px}
@@ -41,15 +41,15 @@ body{background:var(--adm-ivory);color:var(--adm-ink)}
 .admin-actions{display:flex;gap:7px;flex-wrap:wrap}
 .admin-actions button,.admin-panel button[data-order-save],.admin-panel button[data-rfq-save],.admin-panel button[data-order-assign],.admin-panel button[data-create-order],.admin-panel button[data-admin-chat-send]{border:0;border-radius:8px;padding:8px 11px;background:#252321;color:#fff;font-weight:750;cursor:pointer}
 .admin-actions button.reject{background:#9f2d20}.admin-actions button.neutral{background:#75695e}
-.admin-status{display:inline-block;padding:5px 9px;border-radius:99px;background:#f3eee6;color:#76543b;font-size:.72rem;font-weight:800}
-.admin-message{padding:12px 15px;border-radius:10px;background:#edf5ed;margin:0 0 16px}.admin-message.error{background:#fff0f0;color:#8a1d1d}
+.admin-status{display:inline-block;padding:5px 9px;border-radius:99px;background:#fff0e4;color:#a94e16;font-size:.72rem;font-weight:800}
+.admin-message{padding:12px 15px;border-radius:10px;background:#fff2e8;margin:0 0 16px}.admin-message.error{background:#fff0f0;color:#8a1d1d}
 .admin-toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:15px}
 .admin-filter,.admin-panel select,.admin-panel input,.admin-panel textarea{border:1px solid #e5ddd4;border-radius:9px;padding:9px 11px;background:#fff;color:#252321;max-width:100%}
 .admin-panel textarea{width:100%;margin:5px 0}
 .admin-panel label{display:block;font-size:.75rem;font-weight:750;margin:7px 0 3px}
 .admin-overview-welcome{background:linear-gradient(115deg,#282522,#514034);color:#fff;border-radius:16px;padding:25px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:20px}
 .admin-overview-welcome p{color:#e1d5ca;margin:6px 0 0;font-size:.9rem}
-.admin-overview-welcome strong{color:#e3bd91}
+.admin-overview-welcome strong{color:#f2a45e}
 .admin-quick-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .admin-quick-links button{border:1px solid var(--adm-line);border-radius:12px;background:#fff;padding:16px;text-align:left;font-weight:800;color:#252321;cursor:pointer}
 .admin-quick-links button span{display:block;color:var(--adm-muted);font-size:.75rem;font-weight:500;margin-top:5px}
@@ -73,12 +73,12 @@ body{background:var(--adm-ivory);color:var(--adm-ink)}
  <div class="admin-side-foot">International marketplace administration<br>São Tomé &amp; Príncipe</div>
 </aside>
 <div class="admin-main">
- <div class="admin-head"><div><div class="admin-kicker">Control centre / Administration</div><h1>Marketplace dashboard</h1><p class="admin-muted">Monitor marketplace activity and manage operations from one place.</p></div><div class="admin-head-actions"><button id="notification-bell" type="button" class="btn btn-outline" aria-label="Open notifications" title="Open notifications" style="position:relative">♧ <span id="notification-bell-count" aria-live="polite" style="display:none;position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#b87945;color:#fff;font-size:11px;line-height:19px;font-weight:700">0</span></button><button id="refresh" class="btn btn-outline">↻ Refresh data</button></div></div>
+ <div class="admin-head"><div><div class="admin-kicker">Control centre / Administration</div><h1>Marketplace dashboard</h1><p class="admin-muted">Monitor marketplace activity and manage operations from one place.</p></div><div class="admin-head-actions"><button id="notification-bell" type="button" class="btn btn-outline" aria-label="Open notifications" title="Open notifications" style="position:relative">♧ <span id="notification-bell-count" aria-live="polite" style="display:none;position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#e4772e;color:#fff;font-size:11px;line-height:19px;font-weight:700">0</span></button><button id="refresh" class="btn btn-outline">↻ Refresh data</button></div></div>
  <div id="notice" role="status" aria-live="polite"></div>
  <section id="need-login" class="admin-panel"><h2>Administrator sign-in required</h2><p>Sign in using the administrator account from the account portal, then return here.</p><a class="btn btn-gold" href="account.html">Open account portal</a></section>
  <section id="admin-app" hidden>
   <section id="view-overview" class="admin-panel" style="background:transparent;border:0;box-shadow:none;padding:0">
-   <div class="admin-overview-welcome"><div><div class="admin-kicker" style="color:#e3bd91">Executive overview</div><h2 style="font-size:1.65rem;margin:8px 0">Welcome to your control centre</h2><p>Track suppliers, product approvals, orders and buyer activity across CODEYSA-STP.</p></div><strong>CODEYSA</strong></div>
+   <div class="admin-overview-welcome"><div><div class="admin-kicker" style="color:#f2a45e">Executive overview</div><h2 style="font-size:1.65rem;margin:8px 0">Welcome to your control centre</h2><p>Track suppliers, product approvals, orders and buyer activity across CODEYSA-STP.</p></div><strong>CODEYSA</strong></div>
    <div id="stats" class="admin-grid"></div>
    <div class="admin-panel"><h2>Quick access</h2><p class="admin-muted">Go directly to the operational area you need.</p><div class="admin-quick-links"><button data-jump="suppliers">Review suppliers<span>Applications and verification</span></button><button data-jump="products">Moderate products<span>Publish or reject listings</span></button><button data-jump="orders">Manage orders<span>Assignments and shipment tracking</span></button><button data-jump="rfqs">Buyer enquiries<span>Review requests and create orders</span></button><button data-jump="users">Manage users<span>Registered marketplace accounts</span></button><button data-jump="audit">Audit activity<span>Review administrative actions</span></button></div></div>
   </section>
