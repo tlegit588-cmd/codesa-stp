@@ -189,6 +189,26 @@ async function route(request, env) {
       const values=await Promise.all(sql.map(q=>env.DB.prepare(q).first()));
       return json({stats:Object.fromEntries(keys.map((k,i)=>[k,values[i].n]))});
     }
+    if(path==="/api/admin/reports" && method==="GET") {
+      const from=url.searchParams.get("from")||"";
+      const to=url.searchParams.get("to")||"";
+      const validDate=v=>!v||/^\\d{4}-\\d{2}-\\d{2}$/.test(v);
+      if(!validDate(from)||!validDate(to)||(from&&to&&from>to)) return fail("Use a valid report date range.");
+      const start=from?from+" 00:00:00":"1970-01-01 00:00:00";
+      const end=to?to+" 23:59:59":"9999-12-31 23:59:59";
+      const range="created_at>=? AND created_at<=?";
+      const [orders,rfqs,products,suppliers,monthly,orderStatuses,rfqStatuses,topSuppliers]=await Promise.all([
+        env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='delivered' THEN 1 ELSE 0 END) AS delivered, SUM(CASE WHEN status='shipped' THEN 1 ELSE 0 END) AS shipped, SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) AS cancelled FROM orders WHERE "+range).bind(start,end).first(),
+        env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='quoted' THEN 1 ELSE 0 END) AS quoted, SUM(CASE WHEN status='closed' THEN 1 ELSE 0 END) AS closed FROM rfqs WHERE "+range).bind(start,end).first(),
+        env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='published' THEN 1 ELSE 0 END) AS published, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) AS rejected FROM products WHERE "+range).bind(start,end).first(),
+        env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) AS active, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending FROM users WHERE role='supplier' AND "+range).bind(start,end).first(),
+        env.DB.prepare("SELECT substr(created_at,1,7) AS month,COUNT(*) AS total FROM orders WHERE "+range+" GROUP BY substr(created_at,1,7) ORDER BY month ASC LIMIT 24").bind(start,end).all(),
+        env.DB.prepare("SELECT status,COUNT(*) AS total FROM orders WHERE "+range+" GROUP BY status ORDER BY total DESC").bind(start,end).all(),
+        env.DB.prepare("SELECT status,COUNT(*) AS total FROM rfqs WHERE "+range+" GROUP BY status ORDER BY total DESC").bind(start,end).all(),
+        env.DB.prepare("SELECT sp.business_name,COUNT(o.id) AS order_count FROM orders o JOIN supplier_profiles sp ON sp.user_id=o.supplier_id WHERE o.created_at>=? AND o.created_at<=? GROUP BY o.supplier_id,sp.business_name ORDER BY order_count DESC LIMIT 8").bind(start,end).all()
+      ]);
+      return json({from,to,orders,rfqs,products,suppliers,monthlyOrders:monthly.results,orderStatuses:orderStatuses.results,rfqStatuses:rfqStatuses.results,topSuppliers:topSuppliers.results});
+    }
     if(path==="/api/admin/rfqs" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
       const base="SELECT id,product,quantity,destination,requirements,buyer_name,buyer_contact,status,admin_note,created_at,updated_at FROM rfqs";
