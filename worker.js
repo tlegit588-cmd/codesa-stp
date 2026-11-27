@@ -19,6 +19,16 @@ async function userFor(request, env) {
 async function body(request) { try { return await request.json(); } catch { return null; } }
 function validEmail(v) { return typeof v==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length<=190; }
 function safeText(v,max=160) { return typeof v==="string" ? v.trim().slice(0,max) : ""; }
+async function rateLimit(env, request, scope, limit, windowSeconds, identity="") {
+  const ip=request.headers.get("CF-Connecting-IP") || "unknown";
+  const bucket=await digest(scope+"|"+ip+"|"+identity);
+  await env.DB.prepare("INSERT INTO api_rate_limits (bucket_key,window_started_at,request_count) VALUES (?,datetime('now'),1) ON CONFLICT(bucket_key) DO UPDATE SET request_count=CASE WHEN unixepoch('now')-unixepoch(api_rate_limits.window_started_at)>=? THEN 1 ELSE api_rate_limits.request_count+1 END,window_started_at=CASE WHEN unixepoch('now')-unixepoch(api_rate_limits.window_started_at)>=? THEN datetime('now') ELSE api_rate_limits.window_started_at END").bind(bucket,windowSeconds,windowSeconds).run();
+  const row=await env.DB.prepare("SELECT request_count,MAX(0,?-(unixepoch('now')-unixepoch(window_started_at))) AS retry_after FROM api_rate_limits WHERE bucket_key=?").bind(windowSeconds,bucket).first();
+  return row && row.request_count>limit ? Math.max(1,Number(row.retry_after)||windowSeconds) : 0;
+}
+function rateLimited(retryAfter) {
+  return json({error:"Too many requests. Please wait and try again."},429,{"retry-after":String(retryAfter)});
+}
 async function requireUser(request,env) { const u=await userFor(request,env); return u || null; }
 async function audit(env,actorId,action,targetType,targetId,details="") {
   try { await env.DB.prepare("INSERT INTO audit_logs (id,actor_id,action,target_type,target_id,details) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),actorId,action,targetType,targetId,safeText(details,500)).run(); }
@@ -80,6 +90,8 @@ async function route(request, env) {
     return json({ok:true,message:"Administrator created. Sign in through the account portal."},201);
   }
   if (path==="/api/register" && method==="POST") {
+    const wait=await rateLimit(env,request,"register",10,3600);
+    if(wait) return rateLimited(wait);
     const b=await body(request); if (!b) return fail("Invalid request body.");
     const name=safeText(b.name,100), email=safeText(b.email,190).toLowerCase(), password=b.password, role=b.role;
     if (name.length<2 || !validEmail(email) || typeof password!=="string" || password.length<12 || password.length>128) return fail("Enter your name, a valid email and a password of at least 12 characters.");
@@ -97,6 +109,13 @@ async function route(request, env) {
     return json({message:role==="supplier"?"Supplier application received with your business profile. Your account is pending administrator review.":"Buyer account created. You can now sign in.",status},201);
   }
   if (path==="/api/login" && method==="POST") {
+    const ipWait=await rateLimit(env,request,"login-ip",30,900);
+    if(ipWait) return rateLimited(ipWait);
+    const loginBody=await body(request);
+    const emailKey=validEmail(loginBody?.email)?loginBody.email.trim().toLowerCase():"invalid";
+    const accountWait=await rateLimit(env,request,"login-account",8,900,emailKey);
+    if(accountWait) return rateLimited(accountWait);
+    request = new Request(request,{method:"POST",body:JSON.stringify(loginBody),headers:request.headers});
     const b=await body(request); if (!b || !validEmail(b.email) || typeof b.password!=="string") return fail("Enter your email and password.");
     const u=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(b.email.trim().toLowerCase()).first();
     if (!u || (await passwordHash(b.password,u.password_salt)) !== u.password_hash) return fail("Email or password is incorrect.",401);
@@ -111,6 +130,8 @@ async function route(request, env) {
   }
   if (path==="/api/me" && method==="GET") { const u=await userFor(request,env); return u?json({user:u}):fail("Please sign in.",401); }
   if (path==="/api/rfqs" && method==="POST") {
+    const wait=await rateLimit(env,request,"rfq",10,3600);
+    if(wait) return rateLimited(wait);
     const b=await body(request); if(!b) return fail("Invalid request body.");
     if(safeText(b.website,180)) return fail("Request could not be accepted.",400);
     const product=safeText(b.product,180), destination=safeText(b.destination,100), buyerName=safeText(b.buyer_name,120), buyerContact=safeText(b.buyer_contact,180);
@@ -240,7 +261,7 @@ async function route(request, env) {
   if(path.startsWith("/api/support/cases/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
     if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
     const parts=path.split("/"),caseId=decodeURIComponent(parts[4]||"");
-    const item=await env.DB.prepare("SELECT c.id,c.reference,c.order_id,c.status,o.buyer_user_id,o.buyer_email,o.supplier_id FROM support_cases c JOIN orders o ON o.id=c.order_id WHERE c.id=?").bind(caseId).first();
+    const item=await env.DB.prepare("SELECT c.id,c.reference,c.order_id,c.opened_by,c.status,o.buyer_user_id,o.buyer_email,o.supplier_id FROM support_cases c JOIN orders o ON o.id=c.order_id WHERE c.id=?").bind(caseId).first();
     if(!item) return fail("Support case not found.",404);
     const allowed=(user.role==="buyer" && (item.opened_by===user.id || item.buyer_user_id===user.id || (item.buyer_email||"").toLowerCase()===user.email.toLowerCase())) || (user.role==="supplier" && item.supplier_id===user.id);
     if(!allowed) return fail("You do not have access to this support case.",403);
@@ -503,7 +524,9 @@ async function route(request, env) {
   if(path==="/api/supplier/profile" && method==="PUT") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
     const b=await body(request); if(!b) return fail("Invalid request body.");
-    await env.DB.prepare("INSERT INTO supplier_profiles (user_id,business_name,country,description,phone,website) VALUES (?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET business_name=excluded.business_name,country=excluded.country,description=excluded.description,phone=excluded.phone,website=excluded.website,updated_at=datetime('now')").bind(user.id,safeText(b.business_name,140),safeText(b.country,100),safeText(b.description,1200),safeText(b.phone,40),safeText(b.website,200)).run();
+    const businessName=safeText(b.business_name,140), country=safeText(b.country,100), description=safeText(b.description,1200), phone=safeText(b.phone,40), website=safeText(b.website,200);
+    if(businessName.length<2 || country.length<2 || description.length<10 || phone.length<5 || (website && !/^https:\/\//i.test(website))) return fail("Complete the business profile. Website must use HTTPS.");
+    await env.DB.prepare("INSERT INTO supplier_profiles (user_id,business_name,country,description,phone,website) VALUES (?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET business_name=excluded.business_name,country=excluded.country,description=excluded.description,phone=excluded.phone,website=excluded.website,updated_at=datetime('now')").bind(user.id,businessName,country,description,phone,website).run();
     return json({ok:true,message:"Supplier profile saved."});
   }
   if(path==="/api/products" && method==="GET") {
@@ -534,4 +557,25 @@ async function route(request, env) {
   }
   return fail("API route not found.",404);
 }
-export default { async fetch(request,env) { try { return await route(request,env); } catch(e) { console.error("CODEYSA Worker error:",e?.stack||e); return json({error:"Service temporarily unavailable."},500); } } };
+export default { async fetch(request,env) {
+  try {
+    const response=await route(request,env);
+    const headers=new Headers(response.headers);
+    headers.set("X-Content-Type-Options","nosniff");
+    headers.set("X-Frame-Options","DENY");
+    headers.set("Referrer-Policy","strict-origin-when-cross-origin");
+    headers.set("Permissions-Policy","camera=(), microphone=(), geolocation=()");
+    headers.set("Cross-Origin-Resource-Policy","same-origin");
+    return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+  } catch(e) {
+    console.error("CODEYSA Worker error:",e?.stack||e);
+    const response=json({error:"Service temporarily unavailable."},500);
+    const headers=new Headers(response.headers);
+    headers.set("X-Content-Type-Options","nosniff");
+    headers.set("X-Frame-Options","DENY");
+    headers.set("Referrer-Policy","strict-origin-when-cross-origin");
+    headers.set("Permissions-Policy","camera=(), microphone=(), geolocation=()");
+    headers.set("Cross-Origin-Resource-Policy","same-origin");
+    return new Response(response.body,{status:500,headers});
+  }
+} };
