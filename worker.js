@@ -127,6 +127,25 @@ async function route(request, env) {
     const rows=await env.DB.prepare("SELECT reference,product,quantity,destination,status,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
     return json({orders:rows.results});
   }
+  if(path.startsWith("/api/orders/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
+    if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
+    const parts=path.split("/"), orderId=decodeURIComponent(parts[3]||"");
+    const order=await env.DB.prepare("SELECT id,buyer_user_id,buyer_email,supplier_id FROM orders WHERE id=?").bind(orderId).first();
+    if(!order) return fail("Order not found.",404);
+    const isBuyer=user.role==="buyer" && (order.buyer_user_id===user.id || (order.buyer_email||"").toLowerCase()===user.email.toLowerCase());
+    const isSupplier=user.role==="supplier" && order.supplier_id===user.id;
+    if(!isBuyer && !isSupplier) return fail("You do not have access to this order conversation.",403);
+    if(method==="GET") {
+      const rows=await env.DB.prepare("SELECT m.id,m.sender_id,m.sender_role,m.message,m.created_at,u.name AS sender_name FROM order_messages m JOIN users u ON u.id=m.sender_id WHERE m.order_id=? ORDER BY m.created_at ASC LIMIT 300").bind(orderId).all();
+      return json({messages:rows.results});
+    }
+    const b=await body(request), message=safeText(b?.message,2000);
+    if(message.length<1) return fail("Write a message before sending.");
+    const id=crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO order_messages (id,order_id,sender_id,sender_role,message) VALUES (?,?,?,?,?)").bind(id,orderId,user.id,user.role,message).run();
+    await audit(env,user.id,"order.message.sent","order",orderId,"Message sent by "+user.role);
+    return json({ok:true,message:"Message sent.",id},201);
+  }
   if(path.startsWith("/api/admin/")) {
     if(user.role!=="admin") return fail("Administrator access required.",403);
     if(path==="/api/admin/overview" && method==="GET") {
@@ -149,6 +168,21 @@ async function route(request, env) {
       if(!result.meta?.changes) return fail("Sourcing request not found.",404);
       await audit(env,user.id,"rfq."+b.status,"rfq",id,note||"Status updated");
       return json({ok:true,message:"Sourcing request updated."});
+    }
+    if(path.startsWith("/api/admin/orders/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
+      const parts=path.split("/"), orderId=decodeURIComponent(parts[4]||"");
+      const order=await env.DB.prepare("SELECT id FROM orders WHERE id=?").bind(orderId).first();
+      if(!order) return fail("Order not found.",404);
+      if(method==="GET") {
+        const rows=await env.DB.prepare("SELECT m.id,m.sender_id,m.sender_role,m.message,m.created_at,u.name AS sender_name FROM order_messages m JOIN users u ON u.id=m.sender_id WHERE m.order_id=? ORDER BY m.created_at ASC LIMIT 300").bind(orderId).all();
+        return json({messages:rows.results});
+      }
+      const b=await body(request), message=safeText(b?.message,2000);
+      if(message.length<1) return fail("Write a message before sending.");
+      const id=crypto.randomUUID();
+      await env.DB.prepare("INSERT INTO order_messages (id,order_id,sender_id,sender_role,message) VALUES (?,?,?,?,?)").bind(id,orderId,user.id,"admin",message).run();
+      await audit(env,user.id,"order.message.sent","order",orderId,"Message sent by administrator");
+      return json({ok:true,message:"Message sent.",id},201);
     }
     if(path==="/api/admin/orders" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
