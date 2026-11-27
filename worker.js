@@ -80,12 +80,11 @@ async function route(request, env) {
   if (path==="/api/admin/bootstrap" && method==="POST") {
     const b=await body(request);
     if(!env.ADMIN_BOOTSTRAP_TOKEN || request.headers.get("x-admin-bootstrap-token")!==env.ADMIN_BOOTSTRAP_TOKEN) return fail("Invalid bootstrap authorization.",403);
-    const existing=await env.DB.prepare("SELECT id FROM users WHERE role='admin' LIMIT 1").first();
-    if(existing) return fail("An administrator already exists. Bootstrap is closed.",409);
     const name=safeText(b?.name,100), email=safeText(b?.email,190).toLowerCase(), password=b?.password;
     if(name.length<2 || !validEmail(email) || typeof password!=="string" || password.length<16 || password.length>128) return fail("Provide a name, valid email and password of at least 16 characters.");
     const id=crypto.randomUUID(), salt=randomToken(), hash=await passwordHash(password,salt);
-    await env.DB.prepare("INSERT INTO users (id,name,email,password_hash,password_salt,role,status) VALUES (?,?,?,?,?,'admin','active')").bind(id,name,email,hash,salt).run();
+    const created=await env.DB.prepare("INSERT INTO users (id,name,email,password_hash,password_salt,role,status) SELECT ?,?,?,?,?,'admin','active' WHERE NOT EXISTS (SELECT 1 FROM users WHERE role='admin')").bind(id,name,email,hash,salt).run();
+    if(!created.meta?.changes) return fail("An administrator already exists. Bootstrap is closed.",409);
     await audit(env,id,"admin.bootstrap","user",id,"Initial administrator account created");
     return json({ok:true,message:"Administrator created. Sign in through the account portal."},201);
   }
