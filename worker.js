@@ -192,7 +192,7 @@ async function route(request, env) {
     if(path==="/api/admin/reports" && method==="GET") {
       const from=url.searchParams.get("from")||"";
       const to=url.searchParams.get("to")||"";
-      const validDate=v=>!v||/^\\d{4}-\\d{2}-\\d{2}$/.test(v);
+      const validDate=v=>!v||/^\d{4}-\d{2}-\d{2}$/.test(v);
       if(!validDate(from)||!validDate(to)||(from&&to&&from>to)) return fail("Use a valid report date range.");
       const start=from?from+" 00:00:00":"1970-01-01 00:00:00";
       const end=to?to+" 23:59:59":"9999-12-31 23:59:59";
