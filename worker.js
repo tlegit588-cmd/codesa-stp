@@ -94,7 +94,7 @@ async function route(request, env) {
     if(wait) return rateLimited(wait);
     const b=await body(request); if (!b) return fail("Invalid request body.");
     const name=safeText(b.name,100), email=safeText(b.email,190).toLowerCase(), password=b.password, role=b.role;
-    if (name.length<2 || !validEmail(email) || typeof password!=="string" || password.length<12 || password.length>128) return fail("Enter your name, a valid email and a password of at least 12 characters.");
+    if (name.length<2 || !validEmail(email) || typeof password!=="string" || password.length<8 || password.length>128) return fail("Enter your name, a valid email and a password of at least 8 characters.");
     if (!["buyer","supplier"].includes(role)) return fail("Choose buyer or supplier account.");
     const businessName=safeText(b.business_name,140), country=safeText(b.country,100)||"São Tomé and Príncipe", description=safeText(b.description,1200), phone=safeText(b.phone,40), website=safeText(b.website,200);
     if(role==="supplier" && (businessName.length<2 || description.length<10 || (website && !/^https:\/\//i.test(website)))) return fail("Complete your business name and description. Website must use HTTPS.");
