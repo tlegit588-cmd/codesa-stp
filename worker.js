@@ -124,7 +124,7 @@ async function route(request, env) {
   const user=await requireUser(request,env); if(!user) return fail("Please sign in.",401);
   if(path==="/api/orders" && method==="GET") {
     if(user.role!=="buyer") return fail("Buyer account required.",403);
-    const rows=await env.DB.prepare("SELECT reference,product,quantity,destination,status,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
+    const rows=await env.DB.prepare("SELECT id,reference,product,quantity,destination,status,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
     return json({orders:rows.results});
   }
   if(path.startsWith("/api/orders/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
