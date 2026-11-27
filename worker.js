@@ -25,6 +25,16 @@ async function audit(env,actorId,action,targetType,targetId,details="") {
   catch(e) { console.error("Audit log write failed:",e?.stack||e); }
 }
 
+async function notify(env,recipientId,type,title,message,orderId) {
+  if(!recipientId) return;
+  await env.DB.prepare("INSERT INTO notifications (id,recipient_id,type,title,message,order_id) VALUES (?,?,?,?,?,?)")
+    .bind(crypto.randomUUID(),recipientId,type,safeText(title,140),safeText(message,500),orderId||null).run();
+}
+async function notifyAdmins(env,type,title,message,orderId,excludeId=null) {
+  const admins=await env.DB.prepare("SELECT id FROM users WHERE role='admin' AND status='active'").all();
+  for(const admin of admins.results) if(admin.id!==excludeId) await notify(env,admin.id,type,title,message,orderId);
+}
+
 async function route(request, env) {
   const url=new URL(request.url), path=url.pathname, method=request.method;
   if (path==="/api/health") {
@@ -122,6 +132,18 @@ async function route(request, env) {
     return json({supplier,products:products.results});
   }
   const user=await requireUser(request,env); if(!user) return fail("Please sign in.",401);
+  if(path==="/api/notifications" && method==="GET") {
+    const rows=await env.DB.prepare("SELECT id,type,title,message,order_id,read_at,created_at FROM notifications WHERE recipient_id=? ORDER BY created_at DESC LIMIT 50").bind(user.id).all();
+    const count=await env.DB.prepare("SELECT COUNT(*) AS n FROM notifications WHERE recipient_id=? AND read_at IS NULL").bind(user.id).first();
+    return json({notifications:rows.results,unread:count.n});
+  }
+  if(path==="/api/notifications/read" && method==="POST") {
+    const b=await body(request), ids=Array.isArray(b?.ids)?b.ids.filter(x=>typeof x==="string").slice(0,50):[];
+    if(b?.all===true) await env.DB.prepare("UPDATE notifications SET read_at=datetime('now') WHERE recipient_id=? AND read_at IS NULL").bind(user.id).run();
+    else if(ids.length) { const marks=ids.map(()=>"?").join(","); await env.DB.prepare("UPDATE notifications SET read_at=datetime('now') WHERE recipient_id=? AND read_at IS NULL AND id IN ("+marks+")").bind(user.id,...ids).run(); }
+    else return fail("Choose notifications to mark as read.");
+    return json({ok:true,message:"Notifications updated."});
+  }
   if(path==="/api/orders" && method==="GET") {
     if(user.role!=="buyer") return fail("Buyer account required.",403);
     const rows=await env.DB.prepare("SELECT id,reference,product,quantity,destination,status,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
@@ -130,7 +152,7 @@ async function route(request, env) {
   if(path.startsWith("/api/orders/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
     if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
     const parts=path.split("/"), orderId=decodeURIComponent(parts[3]||"");
-    const order=await env.DB.prepare("SELECT id,buyer_user_id,buyer_email,supplier_id FROM orders WHERE id=?").bind(orderId).first();
+    const order=await env.DB.prepare("SELECT id,reference,buyer_user_id,buyer_email,supplier_id FROM orders WHERE id=?").bind(orderId).first();
     if(!order) return fail("Order not found.",404);
     const isBuyer=user.role==="buyer" && (order.buyer_user_id===user.id || (order.buyer_email||"").toLowerCase()===user.email.toLowerCase());
     const isSupplier=user.role==="supplier" && order.supplier_id===user.id;
@@ -143,6 +165,9 @@ async function route(request, env) {
     if(message.length<1) return fail("Write a message before sending.");
     const id=crypto.randomUUID();
     await env.DB.prepare("INSERT INTO order_messages (id,order_id,sender_id,sender_role,message) VALUES (?,?,?,?,?)").bind(id,orderId,user.id,user.role,message).run();
+    if(order.buyer_user_id && order.buyer_user_id!==user.id) await notify(env,order.buyer_user_id,"message","New order message","A new message was added to order "+order.reference+".",orderId);
+    if(order.supplier_id && order.supplier_id!==user.id) await notify(env,order.supplier_id,"message","New order message","A new message was added to order "+order.reference+".",orderId);
+    await notifyAdmins(env,"message","New order message","A participant sent a message for order "+order.reference+".",orderId,user.role==="admin"?user.id:null);
     await audit(env,user.id,"order.message.sent","order",orderId,"Message sent by "+user.role);
     return json({ok:true,message:"Message sent.",id},201);
   }
@@ -171,7 +196,7 @@ async function route(request, env) {
     }
     if(path.startsWith("/api/admin/orders/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
       const parts=path.split("/"), orderId=decodeURIComponent(parts[4]||"");
-      const order=await env.DB.prepare("SELECT id FROM orders WHERE id=?").bind(orderId).first();
+      const order=await env.DB.prepare("SELECT id,reference,buyer_user_id,supplier_id FROM orders WHERE id=?").bind(orderId).first();
       if(!order) return fail("Order not found.",404);
       if(method==="GET") {
         const rows=await env.DB.prepare("SELECT m.id,m.sender_id,m.sender_role,m.message,m.created_at,u.name AS sender_name FROM order_messages m JOIN users u ON u.id=m.sender_id WHERE m.order_id=? ORDER BY m.created_at ASC LIMIT 300").bind(orderId).all();
@@ -181,6 +206,8 @@ async function route(request, env) {
       if(message.length<1) return fail("Write a message before sending.");
       const id=crypto.randomUUID();
       await env.DB.prepare("INSERT INTO order_messages (id,order_id,sender_id,sender_role,message) VALUES (?,?,?,?,?)").bind(id,orderId,user.id,"admin",message).run();
+      if(order.buyer_user_id) await notify(env,order.buyer_user_id,"message","New order message","The marketplace team sent a message about order "+order.reference+".",orderId);
+      if(order.supplier_id) await notify(env,order.supplier_id,"message","New order message","The marketplace team sent a message about order "+order.reference+".",orderId);
       await audit(env,user.id,"order.message.sent","order",orderId,"Message sent by administrator");
       return json({ok:true,message:"Message sent.",id},201);
     }
@@ -223,8 +250,15 @@ async function route(request, env) {
       const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
       if(!["pending","confirmed","processing","shipped","delivered","cancelled"].includes(b?.status)) return fail("Invalid order status.");
       const note=safeText(b.admin_note,1200);
+      const before=await env.DB.prepare("SELECT reference,status,buyer_user_id,supplier_id FROM orders WHERE id=?").bind(id).first();
+      if(!before) return fail("Order not found.",404);
       const result=await env.DB.prepare("UPDATE orders SET status=?,admin_note=?,updated_at=datetime('now') WHERE id=?").bind(b.status,note,id).run();
       if(!result.meta?.changes) return fail("Order not found.",404);
+      if(before.status!==b.status) {
+        const alert="Order "+before.reference+" status changed to "+b.status+".";
+        if(before.buyer_user_id) await notify(env,before.buyer_user_id,"order_status","Order status updated",alert,id);
+        if(before.supplier_id) await notify(env,before.supplier_id,"order_status","Order status updated",alert,id);
+      }
       await audit(env,user.id,"order."+b.status,"order",id,note||"Order status updated");
       return json({ok:true,message:"Order updated."});
     }
@@ -286,8 +320,14 @@ async function route(request, env) {
     const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
     if(!["confirmed","processing","shipped"].includes(b?.status)) return fail("Suppliers may update orders to confirmed, processing or shipped.");
     const note=safeText(b.supplier_note,1000);
+    const before=await env.DB.prepare("SELECT reference,status,buyer_user_id FROM orders WHERE id=? AND supplier_id=?").bind(id,user.id).first();
     const result=await env.DB.prepare("UPDATE orders SET status=?,supplier_note=?,updated_at=datetime('now') WHERE id=? AND supplier_id=? AND status NOT IN ('delivered','cancelled')").bind(b.status,note,id,user.id).run();
     if(!result.meta?.changes) return fail("Assigned order not found or already closed.",404);
+    if(before && before.status!==b.status) {
+      const alert="Order "+before.reference+" status changed to "+b.status+".";
+      if(before.buyer_user_id) await notify(env,before.buyer_user_id,"order_status","Order status updated",alert,id);
+      await notifyAdmins(env,"order_status","Supplier updated an order",alert,id);
+    }
     await audit(env,user.id,"supplier.order."+b.status,"order",id,note||"Supplier updated fulfilment status");
     return json({ok:true,message:"Order fulfilment updated."});
   }
