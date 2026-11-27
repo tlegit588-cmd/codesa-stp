@@ -217,13 +217,13 @@ async function route(request, env) {
       const note=safeText(b.verification_note,1200);
       const account=await env.DB.prepare("SELECT id FROM users WHERE id=? AND role='supplier'").bind(id).first();
       if(!account) return fail("Supplier account not found.",404);
-      const businessName=safeText(b.business_name,140), country=safeText(b.country,100)||"São Tomé and Príncipe";
+      const businessName=safeText(b.business_name,140), country=safeText(b.country,100);
       const description=safeText(b.description,1200), phone=safeText(b.phone,40), website=safeText(b.website,200);
       const current=await env.DB.prepare("SELECT user_id FROM supplier_profiles WHERE user_id=?").bind(id).first();
-      if(!current && (businessName.length<2 || description.length<10 || phone.length<5)) return fail("Complete the business name, description and business phone before saving or approving this supplier.");
+      if(!current && (businessName.length<2 || description.length<10 || phone.length<5 || country.length<2)) return fail("Complete the business name, description and business phone before saving or approving this supplier.");
       if(website && !/^https:\/\//i.test(website)) return fail("Business website must use HTTPS.");
       if(current && (businessName || description || phone || website || country)) {
-        await env.DB.prepare("UPDATE supplier_profiles SET business_name=CASE WHEN ?<>'' THEN ? ELSE business_name END,country=?,description=CASE WHEN ?<>'' THEN ? ELSE description END,phone=CASE WHEN ?<>'' THEN ? ELSE phone END,website=CASE WHEN ?<>'' THEN ? ELSE website END,verification_note=?,verified_at=CASE WHEN ?='active' THEN ? ELSE NULL END,updated_at=datetime('now') WHERE user_id=?").bind(businessName,businessName,country,description,description,phone,phone,website,website,note,b.status,b.status==="active"?new Date().toISOString():null,id).run();
+        await env.DB.prepare("UPDATE supplier_profiles SET business_name=CASE WHEN ?<>'' THEN ? ELSE business_name END,country=CASE WHEN ?<>'' THEN ? ELSE country END,description=CASE WHEN ?<>'' THEN ? ELSE description END,phone=CASE WHEN ?<>'' THEN ? ELSE phone END,website=CASE WHEN ?<>'' THEN ? ELSE website END,verification_note=?,verified_at=CASE WHEN ?='active' THEN ? ELSE NULL END,updated_at=datetime('now') WHERE user_id=?") .bind(businessName,businessName,country,country,description,description,phone,phone,website,website,note,b.status,b.status==="active"?new Date().toISOString():null,id).run();
       } else {
         await env.DB.prepare("INSERT INTO supplier_profiles (user_id,business_name,country,description,phone,website,verification_note,verified_at) VALUES (?,?,?,?,?,?,?,?)").bind(id,businessName,country,description,phone,website,note,b.status==="active"?new Date().toISOString():null).run();
       }
