@@ -116,7 +116,7 @@ async function route(request, env) {
   }
   if (path.startsWith("/api/suppliers/") && method==="GET") {
     const id=decodeURIComponent(path.split("/").pop()||"");
-    const supplier=await env.DB.prepare("SELECT u.id,sp.business_name,sp.country,sp.description,sp.phone,sp.website FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(id).first();
+    const supplier=await env.DB.prepare("SELECT u.id,sp.business_name,sp.country,sp.description,sp.phone,sp.website,sp.verified_at FROM users u JOIN supplier_profiles sp ON sp.user_id=u.id WHERE u.id=? AND u.role='supplier' AND u.status='active' AND sp.business_name<>''").bind(id).first();
     if(!supplier) return fail("Supplier storefront not found.",404);
     const products=await env.DB.prepare("SELECT id,name,category,description,unit,origin,image_url,created_at FROM products WHERE supplier_id=? AND status='published' ORDER BY created_at DESC LIMIT 100").bind(id).all();
     return json({supplier,products:products.results});
@@ -208,15 +208,20 @@ async function route(request, env) {
       return json({ok:true,message:"Product status updated."});
     }
     if(path==="/api/admin/suppliers" && method==="GET") {
-      const rows=await env.DB.prepare("SELECT u.id,u.name,u.email,u.status,u.created_at,p.business_name,p.country FROM users u LEFT JOIN supplier_profiles p ON p.user_id=u.id WHERE u.role='supplier' ORDER BY u.created_at DESC").all();
+      const rows=await env.DB.prepare("SELECT u.id,u.name,u.email,u.status,u.created_at,p.business_name,p.country,p.description,p.phone,p.website,p.verification_note,p.verified_at FROM users u LEFT JOIN supplier_profiles p ON p.user_id=u.id WHERE u.role='supplier' ORDER BY u.created_at DESC").all();
       return json({suppliers:rows.results});
     }
     if(path.startsWith("/api/admin/suppliers/") && method==="POST") {
-      const id=path.split("/").pop(), b=await body(request);
+      const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
       if(!["active","rejected","suspended","pending"].includes(b?.status)) return fail("Invalid supplier status.");
+      const note=safeText(b.verification_note,1200);
+      const existing=await env.DB.prepare("SELECT user_id FROM supplier_profiles WHERE user_id=?").bind(id).first();
+      if(!existing) return fail("Supplier profile not found.",404);
+      const verifiedAt=b.status==="active"?new Date().toISOString():null;
       await env.DB.prepare("UPDATE users SET status=? WHERE id=? AND role='supplier'").bind(b.status,id).run();
-      await audit(env,user.id,"supplier."+b.status,"user",id,b.note||"");
-      return json({ok:true,message:"Supplier status updated."});
+      await env.DB.prepare("UPDATE supplier_profiles SET verification_note=?,verified_at=?,updated_at=datetime('now') WHERE user_id=?").bind(note,verifiedAt,id).run();
+      await audit(env,user.id,"supplier."+b.status,"user",id,note||"Supplier verification status updated");
+      return json({ok:true,message:"Supplier status and verification record updated.",verified_at:verifiedAt});
     }
     if(path==="/api/admin/audit" && method==="GET") {
       const rows=await env.DB.prepare("SELECT a.id,a.action,a.target_type,a.target_id,a.details,a.created_at,u.name AS actor_name FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.created_at DESC LIMIT 100").all();
