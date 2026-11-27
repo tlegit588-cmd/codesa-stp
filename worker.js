@@ -115,8 +115,7 @@ async function route(request, env) {
     const emailKey=validEmail(loginBody?.email)?loginBody.email.trim().toLowerCase():"invalid";
     const accountWait=await rateLimit(env,request,"login-account",8,900,emailKey);
     if(accountWait) return rateLimited(accountWait);
-    request = new Request(request,{method:"POST",body:JSON.stringify(loginBody),headers:request.headers});
-    const b=await body(request); if (!b || !validEmail(b.email) || typeof b.password!=="string") return fail("Enter your email and password.");
+    const b=loginBody; if (!b || !validEmail(b.email) || typeof b.password!=="string") return fail("Enter your email and password.");
     const u=await env.DB.prepare("SELECT * FROM users WHERE email=?").bind(b.email.trim().toLowerCase()).first();
     if (!u || (await passwordHash(b.password,u.password_salt)) !== u.password_hash) return fail("Email or password is incorrect.",401);
     if (u.status!=="active") return fail(u.status==="pending"?"Supplier account awaiting approval.":"This account is not active.",403);
