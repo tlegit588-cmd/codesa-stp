@@ -154,7 +154,7 @@ async function route(request, env) {
     return json({ok:true,message:"Your sourcing request has been received. Our team will review it and contact you.",id},201);
   }
   if (path==="/api/products" && method==="GET") {
-    const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.created_at,sp.business_name,sp.country,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p JOIN supplier_profiles sp ON sp.user_id=p.supplier_id JOIN users u ON u.id=p.supplier_id WHERE p.status='published' AND u.status='active' AND sp.business_name<>'' ORDER BY p.created_at DESC LIMIT 100").all();
+    const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.price_amount,p.price_currency,p.created_at,COALESCE(sp.business_name,'CODEYSA-STP') AS business_name,COALESCE(sp.country,p.origin) AS country,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id WHERE p.status='published' AND ((u.role='admin' AND u.status='active') OR (u.role='supplier' AND u.status='active' AND sp.business_name<>'')) ORDER BY p.created_at DESC LIMIT 100").all();
     return json({products:rows.results});
   }
   if (path.startsWith("/api/suppliers/") && method==="GET") {
@@ -456,6 +456,62 @@ async function route(request, env) {
       if(before.status!==b.status) await env.DB.prepare("INSERT INTO order_status_events (id,order_id,actor_id,actor_role,status,note) VALUES (?,?,?,'admin',?,?)").bind(crypto.randomUUID(),id,user.id,b.status,note).run();
       await audit(env,user.id,"order."+b.status,"order",id,note||"Order status updated");
       return json({ok:true,message:"Order updated."});
+    }
+    if(path==="/api/admin/uploads" && method==="POST") {
+      if(!env.IMAGEKIT_PRIVATE_KEY) return fail("Image storage is not configured. Contact the administrator.",503);
+      const form=await request.formData(), file=form.get("file");
+      if(!file || typeof file.stream!=="function") return fail("Choose an image file.");
+      const allowed={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/avif":"avif"};
+      if(!allowed[file.type]) return fail("Use a JPG, PNG, WebP or AVIF image.");
+      if(file.size<1 || file.size>8*1024*1024) return fail("Image must be smaller than 8 MB.");
+      const cleanName=safeText(file.name||"product-image",100).replace(/[^a-zA-Z0-9._-]/g,"-").replace(/\.+/g,".");
+      const upload=new FormData();
+      upload.set("file",file,cleanName||("product."+allowed[file.type]));
+      upload.set("fileName","codeysa-"+crypto.randomUUID()+"."+allowed[file.type]);
+      upload.set("folder","/codeysa-products");
+      upload.set("useUniqueFileName","true");
+      const auth=btoa(env.IMAGEKIT_PRIVATE_KEY+":");
+      const response=await fetch("https://upload.imagekit.io/api/v1/files/upload",{method:"POST",headers:{Authorization:"Basic "+auth},body:upload});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok || !result.url) {
+        console.error("ImageKit upload failed:",response.status,result.message||result.help||"Unknown error");
+        return fail("Image upload failed. Check ImageKit configuration and try again.",502);
+      }
+      await audit(env,user.id,"product.image_uploaded","image",result.fileId||result.filePath,"Product image uploaded through ImageKit");
+      return json({ok:true,url:result.url,file_id:result.fileId||"",name:result.name||cleanName},201);
+    }
+    if(path==="/api/admin/products" && method==="POST") {
+      const b=await body(request); if(!b) return fail("Invalid product details.");
+      const name=safeText(b.name,140),category=safeText(b.category,80),description=safeText(b.description,1200);
+      const unit=safeText(b.unit,40),origin=safeText(b.origin,100)||"São Tomé and Príncipe";
+      const imageUrl=safeText(b.image_url,700),currency=safeText(b.price_currency,3).toUpperCase();
+      const amount=b.price_amount===""||b.price_amount===null||b.price_amount===undefined?null:Number(b.price_amount);
+      if(name.length<2||!category||description.length<10) return fail("Enter a product name, category and description of at least 10 characters.");
+      if(amount!==null&&(!Number.isFinite(amount)||amount<=0||amount>1000000000000)) return fail("Enter a valid positive product price.");
+      if(!["EUR","STN","USD","NGN","XAF"].includes(currency)) return fail("Choose a supported product currency.");
+      if(imageUrl&&!/^https:\/\//i.test(imageUrl)) return fail("Product image must use HTTPS.");
+      const status=b.status==="published"?"published":"pending",id=crypto.randomUUID();
+      await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,price_amount,price_currency,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(id,user.id,name,category,description,unit,origin,imageUrl,amount,currency,status).run();
+      await audit(env,user.id,"product.created","product",id,"Administrator created "+name+" ("+status+")");
+      return json({ok:true,message:status==="published"?"Product published to the marketplace.":"Product saved as a draft for review.",id},201);
+    }
+    if(path.startsWith("/api/admin/products/") && method==="PUT") {
+      const id=decodeURIComponent(path.split("/").pop()||""),b=await body(request);
+      if(!b) return fail("Invalid product details.");
+      const name=safeText(b.name,140),category=safeText(b.category,80),description=safeText(b.description,1200);
+      const unit=safeText(b.unit,40),origin=safeText(b.origin,100)||"São Tomé and Príncipe";
+      const imageUrl=safeText(b.image_url,700),currency=safeText(b.price_currency,3).toUpperCase();
+      const amount=b.price_amount===""||b.price_amount===null||b.price_amount===undefined?null:Number(b.price_amount);
+      if(name.length<2||!category||description.length<10) return fail("Enter a product name, category and description of at least 10 characters.");
+      if(amount!==null&&(!Number.isFinite(amount)||amount<=0||amount>1000000000000)) return fail("Enter a valid positive product price.");
+      if(!["EUR","STN","USD","NGN","XAF"].includes(currency)) return fail("Choose a supported product currency.");
+      if(imageUrl&&!/^https:\/\//i.test(imageUrl)) return fail("Product image must use HTTPS.");
+      const before=await env.DB.prepare("SELECT id,name,status FROM products WHERE id=?").bind(id).first();
+      if(!before) return fail("Product not found.",404);
+      const status=["published","pending","rejected"].includes(b.status)?b.status:before.status;
+      await env.DB.prepare("UPDATE products SET name=?,category=?,description=?,unit=?,origin=?,image_url=?,price_amount=?,price_currency=?,status=? WHERE id=?").bind(name,category,description,unit,origin,imageUrl,amount,currency,status,id).run();
+      await audit(env,user.id,"product.updated","product",id,"Updated "+name);
+      return json({ok:true,message:"Product details updated."});
     }
     if(path==="/api/admin/products" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
