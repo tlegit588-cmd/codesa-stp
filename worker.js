@@ -68,6 +68,8 @@ async function route(request, env) {
     if (origin && origin!==url.origin) return fail("Cross-origin request rejected.",403);
   }
   if (path==="/api/admin/password-reset" && method==="POST") {
+    const resetWait=await rateLimit(env,request,"admin-password-reset",5,900);
+    if(resetWait) return rateLimited(resetWait);
     const b=await body(request);
     if(!env.ADMIN_BOOTSTRAP_TOKEN || request.headers.get("x-admin-bootstrap-token")!==env.ADMIN_BOOTSTRAP_TOKEN) return fail("Invalid reset authorization.",403);
     const email=safeText(b?.email,190).toLowerCase(), password=b?.password;
@@ -86,6 +88,8 @@ async function route(request, env) {
     return json({ok:true,verified:true,message:"Password reset and verified. You are now signed in.",user:{id:admin.id,name:saved.name,email:saved.email,role:saved.role}},200,{"set-cookie":cookie(token,SESSION_DAYS*86400)});
   }
   if (path==="/api/admin/bootstrap" && method==="POST") {
+    const bootstrapWait=await rateLimit(env,request,"admin-bootstrap",5,900);
+    if(bootstrapWait) return rateLimited(bootstrapWait);
     const b=await body(request);
     if(!env.ADMIN_BOOTSTRAP_TOKEN || request.headers.get("x-admin-bootstrap-token")!==env.ADMIN_BOOTSTRAP_TOKEN) return fail("Invalid bootstrap authorization.",403);
     const name=safeText(b?.name,100), email=safeText(b?.email,190).toLowerCase(), password=b?.password;
