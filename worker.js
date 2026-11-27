@@ -144,9 +144,19 @@ async function route(request, env) {
     else return fail("Choose notifications to mark as read.");
     return json({ok:true,message:"Notifications updated."});
   }
+    if(path.startsWith("/api/orders/") && path.endsWith("/tracking") && method==="GET") {
+    if(user.role!=="buyer" && user.role!=="supplier") return fail("Buyer or supplier account required.",403);
+    const orderId=decodeURIComponent(path.split("/")[3]||"");
+    const order=await env.DB.prepare("SELECT id,reference,buyer_user_id,buyer_email,supplier_id,status,carrier_name,tracking_number,tracking_url,shipped_at,delivered_at FROM orders WHERE id=?").bind(orderId).first();
+    if(!order) return fail("Order not found.",404);
+    const allowed=(user.role==="buyer" && (order.buyer_user_id===user.id || (order.buyer_email||"").toLowerCase()===user.email.toLowerCase())) || (user.role==="supplier" && order.supplier_id===user.id);
+    if(!allowed) return fail("You do not have access to this shipment.",403);
+    const events=await env.DB.prepare("SELECT status,note,actor_role,created_at FROM order_status_events WHERE order_id=? ORDER BY created_at ASC LIMIT 100").bind(orderId).all();
+    return json({order,events:events.results});
+  }
   if(path==="/api/orders" && method==="GET") {
     if(user.role!=="buyer") return fail("Buyer account required.",403);
-    const rows=await env.DB.prepare("SELECT id,reference,product,quantity,destination,status,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
+    const rows=await env.DB.prepare("SELECT id,reference,product,quantity,destination,status,carrier_name,tracking_number,tracking_url,shipped_at,delivered_at,created_at,updated_at FROM orders WHERE buyer_email=? ORDER BY created_at DESC LIMIT 100").bind(user.email.toLowerCase()).all();
     return json({orders:rows.results});
   }
   if(path.startsWith("/api/orders/") && path.endsWith("/messages") && (method==="GET" || method==="POST")) {
@@ -213,7 +223,7 @@ async function route(request, env) {
     }
     if(path==="/api/admin/orders" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
-      const base="SELECT o.id,o.reference,o.rfq_id,o.buyer_name,o.buyer_email,o.product,o.quantity,o.destination,o.status,o.admin_note,o.supplier_id,o.created_at,o.updated_at,sp.business_name AS supplier_name FROM orders o LEFT JOIN supplier_profiles sp ON sp.user_id=o.supplier_id";
+      const base="SELECT o.id,o.reference,o.rfq_id,o.buyer_name,o.buyer_email,o.product,o.quantity,o.destination,o.status,o.admin_note,o.supplier_id,o.carrier_name,o.tracking_number,o.tracking_url,o.shipped_at,o.delivered_at,o.created_at,o.updated_at,sp.business_name AS supplier_name FROM orders o LEFT JOIN supplier_profiles sp ON sp.user_id=o.supplier_id";
       const rows=status==="all"?await env.DB.prepare(base+" ORDER BY o.created_at DESC LIMIT 300").all():await env.DB.prepare(base+" WHERE o.status=? ORDER BY o.created_at DESC LIMIT 300").bind(status).all();
       return json({orders:rows.results});
     }
@@ -249,16 +259,18 @@ async function route(request, env) {
     if(path.startsWith("/api/admin/orders/") && method==="POST") {
       const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
       if(!["pending","confirmed","processing","shipped","delivered","cancelled"].includes(b?.status)) return fail("Invalid order status.");
-      const note=safeText(b.admin_note,1200);
+      const note=safeText(b.admin_note,1200),carrier=safeText(b.carrier_name,100),tracking=safeText(b.tracking_number,120),trackingUrl=safeText(b.tracking_url,500);
+      if(trackingUrl && !/^https:\/\//i.test(trackingUrl)) return fail("Tracking link must use HTTPS.");
       const before=await env.DB.prepare("SELECT reference,status,buyer_user_id,supplier_id FROM orders WHERE id=?").bind(id).first();
       if(!before) return fail("Order not found.",404);
-      const result=await env.DB.prepare("UPDATE orders SET status=?,admin_note=?,updated_at=datetime('now') WHERE id=?").bind(b.status,note,id).run();
+      const result=await env.DB.prepare("UPDATE orders SET status=?,admin_note=?,carrier_name=?,tracking_number=?,tracking_url=?,shipped_at=CASE WHEN ?='shipped' AND shipped_at IS NULL THEN datetime('now') ELSE shipped_at END,delivered_at=CASE WHEN ?='delivered' AND delivered_at IS NULL THEN datetime('now') ELSE delivered_at END,updated_at=datetime('now') WHERE id=?").bind(b.status,note,carrier,tracking,trackingUrl,b.status,b.status,id).run();
       if(!result.meta?.changes) return fail("Order not found.",404);
       if(before.status!==b.status) {
         const alert="Order "+before.reference+" status changed to "+b.status+".";
         if(before.buyer_user_id) await notify(env,before.buyer_user_id,"order_status","Order status updated",alert,id);
         if(before.supplier_id) await notify(env,before.supplier_id,"order_status","Order status updated",alert,id);
       }
+      if(before.status!==b.status) await env.DB.prepare("INSERT INTO order_status_events (id,order_id,actor_id,actor_role,status,note) VALUES (?,?,?,'admin',?,?)").bind(crypto.randomUUID(),id,user.id,b.status,note).run();
       await audit(env,user.id,"order."+b.status,"order",id,note||"Order status updated");
       return json({ok:true,message:"Order updated."});
     }
@@ -312,22 +324,24 @@ async function route(request, env) {
   }
   if(path==="/api/supplier/orders" && method==="GET") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
-    const rows=await env.DB.prepare("SELECT id,reference,buyer_name,product,quantity,destination,status,supplier_note,created_at,updated_at FROM orders WHERE supplier_id=? ORDER BY created_at DESC LIMIT 100").bind(user.id).all();
+    const rows=await env.DB.prepare("SELECT id,reference,buyer_name,product,quantity,destination,status,supplier_note,carrier_name,tracking_number,tracking_url,shipped_at,delivered_at,created_at,updated_at FROM orders WHERE supplier_id=? ORDER BY created_at DESC LIMIT 100").bind(user.id).all();
     return json({orders:rows.results});
   }
   if(path.startsWith("/api/supplier/orders/") && method==="POST") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
     const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
     if(!["confirmed","processing","shipped"].includes(b?.status)) return fail("Suppliers may update orders to confirmed, processing or shipped.");
-    const note=safeText(b.supplier_note,1000);
+    const note=safeText(b.supplier_note,1000),carrier=safeText(b.carrier_name,100),tracking=safeText(b.tracking_number,120),trackingUrl=safeText(b.tracking_url,500);
+    if(trackingUrl && !/^https:\/\//i.test(trackingUrl)) return fail("Tracking link must use HTTPS.");
     const before=await env.DB.prepare("SELECT reference,status,buyer_user_id FROM orders WHERE id=? AND supplier_id=?").bind(id,user.id).first();
-    const result=await env.DB.prepare("UPDATE orders SET status=?,supplier_note=?,updated_at=datetime('now') WHERE id=? AND supplier_id=? AND status NOT IN ('delivered','cancelled')").bind(b.status,note,id,user.id).run();
+    const result=await env.DB.prepare("UPDATE orders SET status=?,supplier_note=?,carrier_name=?,tracking_number=?,tracking_url=?,shipped_at=CASE WHEN ?='shipped' AND shipped_at IS NULL THEN datetime('now') ELSE shipped_at END,updated_at=datetime('now') WHERE id=? AND supplier_id=? AND status NOT IN ('delivered','cancelled')").bind(b.status,note,carrier,tracking,trackingUrl,b.status,id,user.id).run();
     if(!result.meta?.changes) return fail("Assigned order not found or already closed.",404);
     if(before && before.status!==b.status) {
       const alert="Order "+before.reference+" status changed to "+b.status+".";
       if(before.buyer_user_id) await notify(env,before.buyer_user_id,"order_status","Order status updated",alert,id);
       await notifyAdmins(env,"order_status","Supplier updated an order",alert,id);
     }
+    if(before && before.status!==b.status) await env.DB.prepare("INSERT INTO order_status_events (id,order_id,actor_id,actor_role,status,note) VALUES (?,?,?,'supplier',?,?)").bind(crypto.randomUUID(),id,user.id,b.status,note).run();
     await audit(env,user.id,"supplier.order."+b.status,"order",id,note||"Supplier updated fulfilment status");
     return json({ok:true,message:"Order fulfilment updated."});
   }
