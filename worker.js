@@ -535,7 +535,7 @@ async function route(request, env) {
       if(!validProductImageUrl(imageUrl)) return fail("Use a direct HTTPS product image URL, not an advertising or redirect link.");
       const categoryRow=await env.DB.prepare("SELECT name FROM product_categories WHERE name=? COLLATE NOCASE AND status='active'").bind(category).first();
       if(!categoryRow) return fail("Choose an active marketplace category.");
-      const before=await env.DB.prepare("SELECT id,name,status FROM products WHERE id=?").bind(id).first();
+      const before=await env.DB.prepare("SELECT id,name,status,supplier_id FROM products WHERE id=?").bind(id).first();
       if(!before) return fail("Product not found.",404);
       const duplicate=await env.DB.prepare("SELECT id FROM products WHERE supplier_id=? AND id<>? AND lower(trim(name))=lower(?) AND lower(trim(category))=lower(?) AND status<>'rejected' LIMIT 1").bind(before.supplier_id,id,name,category).first();
       if(duplicate) return fail("Another matching product already exists for this account.",409);
