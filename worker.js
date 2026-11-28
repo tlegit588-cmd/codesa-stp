@@ -570,16 +570,23 @@ async function route(request, env) {
     }
     if(path==="/api/admin/products" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
-      const base="SELECT p.*,u.name AS supplier_name,u.email AS supplier_email,sp.business_name FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id";
+      const base="SELECT p.*,u.name AS supplier_name,u.email AS supplier_email,u.role AS supplier_role,u.status AS supplier_status,sp.business_name,sp.verified_at AS supplier_verified_at FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id";
       const rows=status==="all"?await env.DB.prepare(base+" ORDER BY p.created_at DESC LIMIT 200").all():await env.DB.prepare(base+" WHERE p.status=? ORDER BY p.created_at DESC LIMIT 200").bind(status).all();
       return json({products:rows.results});
     }
     if(path.startsWith("/api/admin/products/") && method==="POST") {
-      const id=path.split("/").pop(), b=await body(request);
+      const id=decodeURIComponent(path.split("/").pop()||""), b=await body(request);
       if(!["published","rejected","pending"].includes(b?.status)) return fail("Invalid product status.");
+      const note=safeText(b.note,1200);
+      const product=await env.DB.prepare("SELECT p.id,p.name,p.supplier_id,u.role AS supplier_role,u.status AS supplier_status,sp.verified_at FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id WHERE p.id=?").bind(id).first();
+      if(!product) return fail("Product not found.",404);
+      if(b.status==="rejected" && note.length<5) return fail("Enter a rejection reason of at least 5 characters.");
+      if(b.status==="published" && product.supplier_role==="supplier" && (product.supplier_status!=="active" || !product.verified_at)) {
+        return fail("This supplier is not fully verified. Verify the supplier before publishing products.",409);
+      }
       await env.DB.prepare("UPDATE products SET status=? WHERE id=?").bind(b.status,id).run();
-      await audit(env,user.id,"product."+b.status,"product",id,b.note||"");
-      return json({ok:true,message:"Product status updated."});
+      await audit(env,user.id,"product."+b.status,"product",id,note||("Moderation status set to "+b.status+" for "+product.name));
+      return json({ok:true,message:b.status==="published"?"Product verified and published.":b.status==="rejected"?"Product rejected with reason recorded.":"Product returned to pending review."});
     }
     if(path==="/api/admin/suppliers" && method==="GET") {
       const rows=await env.DB.prepare("SELECT u.id,u.name,u.email,u.status,u.created_at,p.business_name,p.country,p.description,p.phone,p.website,p.verification_note,p.verified_at FROM users u LEFT JOIN supplier_profiles p ON p.user_id=u.id WHERE u.role='supplier' ORDER BY u.created_at DESC").all();
