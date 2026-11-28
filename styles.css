@@ -482,3 +482,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:900px){.market-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.market-layout{grid-template-columns:210px minmax(0,1fr)}}
 @media(max-width:650px){.market-dashboard-head{padding:24px 0 27px}.market-dashboard-title-row{align-items:flex-start;flex-direction:column}.market-dashboard-cta{padding:10px 14px}.market-dashboard-search{gap:2px}.market-dashboard-search button{padding:0 12px;font-size:.78rem}.market-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.market-stat{border-right:0;padding:8px 4px}.market-layout{grid-template-columns:1fr}.market-sidebar{position:static}.market-product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.market-product-image{height:150px}.market-product-body{padding:12px}.market-product-meta{font-size:.68rem}}
 @media(max-width:420px){.market-product-grid{grid-template-columns:1fr}.market-product-image{height:190px}.market-dashboard-search input{font-size:.84rem}.market-dashboard-search .market-search-icon{display:none}}
+
+
+/* Marketplace data refresh control */
+.market-toolbar-actions{display:flex;align-items:center;gap:9px}
+.market-refresh-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 13px;border:0;border-radius:9px;background:#c65312;color:#fff;font:inherit;font-size:.82rem;font-weight:850;cursor:pointer;white-space:nowrap;transition:background .18s,opacity .18s}
+.market-refresh-button:hover{background:#e16a25}
+.market-refresh-button:disabled{opacity:.72;cursor:wait}
+.market-refresh-button span{font-size:1.15rem;line-height:1}
+.market-refresh-button.is-loading span{animation:market-refresh-spin .8s linear infinite}
+.market-refresh-status{min-height:18px;margin:0 2px 9px;color:#82796f;font-size:.76rem}
+@keyframes market-refresh-spin{to{transform:rotate(360deg)}}
+@media(max-width:520px){.market-toolbar-actions{width:100%;flex-wrap:wrap}.market-toolbar-actions select{flex:1;min-width:120px}.market-refresh-button{flex:0 0 auto}}
