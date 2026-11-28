@@ -191,6 +191,13 @@ async function route(request, env) {
     const products=await env.DB.prepare("SELECT p.id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.price_amount,p.price_currency,p.created_at,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p WHERE p.supplier_id=? AND p.status='published' ORDER BY p.created_at DESC LIMIT 100").bind(id).all();
     return json({supplier,products:products.results});
   }
+  if(path.startsWith("/api/products/") && method==="GET" && !path.endsWith("/reviews")) {
+    const productId=decodeURIComponent(path.split("/")[3]||"");
+    if(!productId) return fail("Product not found.",404);
+    const product=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.price_amount,p.price_currency,p.created_at,u.role AS owner_role,COALESCE(sp.business_name,'CODEYSA-STP') AS business_name,COALESCE(sp.country,p.origin) AS country,sp.description AS supplier_description,sp.phone AS supplier_phone,sp.website AS supplier_website,sp.verified_at AS supplier_verified_at,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id WHERE p.id=? AND p.status='published' AND ((u.role='admin' AND u.status='active') OR (u.role='supplier' AND u.status='active' AND sp.business_name<>''))").bind(productId).first();
+    if(!product) return fail("Product not found.",404);
+    return json({product});
+  }
   if(path.startsWith("/api/products/") && path.endsWith("/reviews") && method==="GET") {
     const productId=decodeURIComponent(path.split("/")[3]||"");
     const product=await env.DB.prepare("SELECT id FROM products WHERE id=? AND status='published'").bind(productId).first();
