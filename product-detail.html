@@ -106,7 +106,7 @@
    else {const placeholder=document.createElement("span");placeholder.className="product-detail-placeholder";placeholder.textContent="CODEYSA-STP";image.append(placeholder);}
    const message="Hello, I am interested in "+p.name+". Please confirm current availability, minimum order quantity, specifications, shipping options and final pricing.";
    const contactPhone=p.owner_role==="supplier"&&p.supplier_phone?p.supplier_phone:"2399860074";
-   addLink($("#product-actions"),"Enquire about this product ↗",whatsapp(contactPhone,message));
+   addLink($("#product-actions"),"Contact Seller",whatsapp(contactPhone,message));
    addLink($("#product-actions"),"Back to marketplace","marketplace.html","btn btn-outline");
    $("#supplier-name").textContent=p.business_name||"CODEYSA-STP";
    $("#supplier-description").textContent=p.supplier_description||"Supplier profile information is available through CODEYSA-STP.";
