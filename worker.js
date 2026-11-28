@@ -670,7 +670,7 @@ async function route(request, env) {
     const duplicate=await env.DB.prepare("SELECT id FROM products WHERE supplier_id=? AND lower(trim(name))=lower(?) AND lower(trim(category))=lower(?) AND status<>'rejected' LIMIT 1").bind(user.id,name,category).first();
     if(duplicate) return fail("A matching product is already on your account. Contact an administrator if you need the existing listing changed.",409);
     const id=crypto.randomUUID();
-    await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,price_amount,price_currency,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending')").bind(id,user.id,name,categoryRow.name,description,safeText(b.unit,40),safeText(b.origin,100)||"São Tomé and Príncipe",imageUrl,price.amount,price.currency).run();
+    await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,price_amount,price_currency,status) VALUES (?,?,?,?,?,?,?,?,?,?,'pending')").bind(id,user.id,name,categoryRow.name,description,safeText(b.unit,40),safeText(b.origin,100)||"São Tomé and Príncipe",imageUrl,price.amount,price.currency).run();
     await audit(env,user.id,"product.submitted","product",id,"Supplier submitted "+name+" for review");
     return json({ok:true,message:"Product submitted for review.",id},201);
   }
