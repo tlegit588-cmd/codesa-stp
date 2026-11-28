@@ -494,3 +494,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .market-refresh-status{min-height:18px;margin:0 2px 9px;color:#82796f;font-size:.76rem}
 @keyframes market-refresh-spin{to{transform:rotate(360deg)}}
 @media(max-width:520px){.market-toolbar-actions{width:100%;flex-wrap:wrap}.market-toolbar-actions select{flex:1;min-width:120px}.market-refresh-button{flex:0 0 auto}}
+
+
+/* Sprint 6 Phase 4 — product detail and buyer enquiry */
+.product-detail-wrap{max-width:1120px;margin:0 auto}
+.product-detail-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:28px;align-items:start}
+.product-detail-panel,.product-detail-info,.product-supplier-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:clamp(18px,3vw,28px);box-shadow:0 10px 30px rgba(37,35,33,.06)}
+.product-detail-image{min-height:340px;background:#f5f2ed;border-radius:13px;display:grid;place-items:center;overflow:hidden}
+.product-detail-image img{width:100%;height:100%;max-height:520px;object-fit:contain;padding:18px;box-sizing:border-box}
+.product-detail-placeholder{font-weight:900;letter-spacing:.15em;color:#9b7048;font-size:1.25rem}
+.product-detail-info h1{font-size:clamp(1.8rem,4vw,2.7rem);margin:10px 0;color:#292521}
+.product-detail-price{font-size:1.65rem;font-weight:900;color:#986039;margin:16px 0}
+.product-detail-meta{display:flex;gap:9px;flex-wrap:wrap;color:var(--muted);font-size:.85rem}
+.product-detail-meta span{background:#f7f3ee;border-radius:99px;padding:6px 10px}
+.product-detail-description{line-height:1.75;color:#625b53;white-space:pre-wrap}
+.product-detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.product-detail-actions a{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.product-supplier-panel{margin-top:22px;box-shadow:none}
+.product-supplier-panel h2{font-size:1.15rem;margin:0 0 8px}
+.product-supplier-panel p{color:var(--muted);line-height:1.6}
+.product-review-list{display:grid;gap:12px;margin-top:14px}
+.product-review{border-top:1px solid var(--line);padding-top:12px}
+.product-review strong{color:#986039}
+.product-review p{margin:6px 0;color:#625b53;white-space:pre-wrap}
+.product-detail-status{padding:20px;background:#fff;border:1px solid var(--line);border-radius:14px}
+@media(max-width:760px){.product-detail-layout{grid-template-columns:1fr}.product-detail-image{min-height:250px}.product-detail-info{padding:20px}}
