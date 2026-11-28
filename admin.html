@@ -25,7 +25,7 @@ body{background:var(--adm-ivory);color:var(--adm-ink)}
 .admin-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .admin-head-actions button{border-radius:10px!important;padding:11px 15px!important}
 #notification-bell{background:#fff!important;color:#252321!important;border:1px solid var(--adm-line)!important;min-width:46px}
-#refresh{background:#252321!important;color:#fff!important}
+#refresh{background:#e4772e!important;color:#fff!important;border:1px solid #e4772e!important;box-shadow:0 5px 14px #e4772e35!important}#refresh:hover{background:#c95f1c!important;border-color:#c95f1c!important}#refresh:disabled{opacity:.7;cursor:wait}
 .admin-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 22px}
 .admin-stat,.admin-panel{background:#fff;border:1px solid var(--adm-line);border-radius:15px;padding:19px;box-shadow:0 7px 25px #25232108}
 .admin-stat{position:relative;overflow:hidden}
@@ -80,7 +80,7 @@ body{background:var(--adm-ivory);color:var(--adm-ink)}
  <a class="btn btn-outline" href="support-admin.html" style="display:block;margin:12px">Open Support &amp; Disputes</a><div class="admin-side-foot">International marketplace administration<br>São Tomé &amp; Príncipe</div>
 </aside>
 <div class="admin-main">
- <div class="admin-head"><div><div class="admin-kicker">Control centre / Administration</div><h1>Marketplace dashboard</h1><p class="admin-muted">Monitor marketplace activity and manage operations from one place.</p></div><div class="admin-head-actions"><button id="notification-bell" type="button" class="btn btn-outline" aria-label="Open notifications" title="Open notifications" style="position:relative">♧ <span id="notification-bell-count" aria-live="polite" style="display:none;position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#e4772e;color:#fff;font-size:11px;line-height:19px;font-weight:700">0</span></button><button id="refresh" class="btn btn-outline">↻ Refresh data</button></div></div>
+ <div class="admin-head"><div><div class="admin-kicker">Control centre / Administration</div><h1>Marketplace dashboard</h1><p class="admin-muted">Monitor marketplace activity and manage operations from one place.</p></div><div class="admin-head-actions"><button id="notification-bell" type="button" class="btn btn-outline" aria-label="Open notifications" title="Open notifications" style="position:relative">♧ <span id="notification-bell-count" aria-live="polite" style="display:none;position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#e4772e;color:#fff;font-size:11px;line-height:19px;font-weight:700">0</span></button><button id="refresh" class="btn btn-outline" type="button" title="Reload dashboard data">↻ Refresh Data</button></div></div>
  <div id="notice" role="status" aria-live="polite"></div>
  <section id="need-login" class="admin-panel"><h2>Administrator sign-in required</h2><p>Sign in using the administrator account from the account portal, then return here.</p><a class="btn btn-gold" href="account.html">Open account portal</a></section>
  <section id="admin-app" hidden>
