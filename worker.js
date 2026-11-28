@@ -19,6 +19,29 @@ async function userFor(request, env) {
 async function body(request) { try { return await request.json(); } catch { return null; } }
 function validEmail(v) { return typeof v==="string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) && v.length<=190; }
 function safeText(v,max=160) { return typeof v==="string" ? v.trim().slice(0,max) : ""; }
+function validProductImageUrl(value) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password) return false;
+    const host = url.hostname.toLowerCase();
+    if ((host === "google.com" || host.endsWith(".google.com")) && url.pathname.startsWith("/aclk")) return false;
+    if (host.includes("googleadservices.com") || host.includes("doubleclick.net")) return false;
+    return true;
+  } catch { return false; }
+}
+function productPrice(body) {
+  const raw = body.price_amount;
+  const amount = raw === "" || raw === null || raw === undefined ? null : Number(raw);
+  const currency = safeText(body.price_currency, 3).toUpperCase() || "EUR";
+  if (amount !== null && (!Number.isFinite(amount) || amount <= 0 || amount > 1000000000000)) {
+    return { error: "Enter a valid positive product price." };
+  }
+  if (!["EUR", "STN", "USD", "NGN", "XAF"].includes(currency)) {
+    return { error: "Choose a supported product currency." };
+  }
+  return { amount, currency };
+}
 async function rateLimit(env, request, scope, limit, windowSeconds, identity="") {
   // Opportunistically prune stale buckets without adding a write to every request.
   if (crypto.getRandomValues(new Uint8Array(1))[0] === 0) {
@@ -488,14 +511,16 @@ async function route(request, env) {
       const b=await body(request); if(!b) return fail("Invalid product details.");
       const name=safeText(b.name,140),category=safeText(b.category,80),description=safeText(b.description,1200);
       const unit=safeText(b.unit,40),origin=safeText(b.origin,100)||"São Tomé and Príncipe";
-      const imageUrl=safeText(b.image_url,700),currency=safeText(b.price_currency,3).toUpperCase();
-      const amount=b.price_amount===""||b.price_amount===null||b.price_amount===undefined?null:Number(b.price_amount);
+      const imageUrl=safeText(b.image_url,700),price=productPrice(b);
       if(name.length<2||!category||description.length<10) return fail("Enter a product name, category and description of at least 10 characters.");
-      if(amount!==null&&(!Number.isFinite(amount)||amount<=0||amount>1000000000000)) return fail("Enter a valid positive product price.");
-      if(!["EUR","STN","USD","NGN","XAF"].includes(currency)) return fail("Choose a supported product currency.");
-      if(imageUrl&&!/^https:\/\//i.test(imageUrl)) return fail("Product image must use HTTPS.");
+      if(price.error) return fail(price.error);
+      if(!validProductImageUrl(imageUrl)) return fail("Use a direct HTTPS product image URL, not an advertising or redirect link.");
+      const categoryRow=await env.DB.prepare("SELECT name FROM product_categories WHERE name=? COLLATE NOCASE AND status='active'").bind(category).first();
+      if(!categoryRow) return fail("Choose an active marketplace category.");
+      const duplicate=await env.DB.prepare("SELECT id FROM products WHERE supplier_id=? AND lower(trim(name))=lower(?) AND lower(trim(category))=lower(?) AND status<>'rejected' LIMIT 1").bind(user.id,name,category).first();
+      if(duplicate) return fail("A matching product is already on your account. Edit the existing listing instead of submitting it again.",409);
       const status=b.status==="published"?"published":"pending",id=crypto.randomUUID();
-      await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,price_amount,price_currency,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(id,user.id,name,category,description,unit,origin,imageUrl,amount,currency,status).run();
+      await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,price_amount,price_currency,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)").bind(id,user.id,name,categoryRow.name,description,unit,origin,imageUrl,price.amount,price.currency,status).run();
       await audit(env,user.id,"product.created","product",id,"Administrator created "+name+" ("+status+")");
       return json({ok:true,message:status==="published"?"Product published to the marketplace.":"Product saved as a draft for review.",id},201);
     }
@@ -504,16 +529,18 @@ async function route(request, env) {
       if(!b) return fail("Invalid product details.");
       const name=safeText(b.name,140),category=safeText(b.category,80),description=safeText(b.description,1200);
       const unit=safeText(b.unit,40),origin=safeText(b.origin,100)||"São Tomé and Príncipe";
-      const imageUrl=safeText(b.image_url,700),currency=safeText(b.price_currency,3).toUpperCase();
-      const amount=b.price_amount===""||b.price_amount===null||b.price_amount===undefined?null:Number(b.price_amount);
+      const imageUrl=safeText(b.image_url,700),price=productPrice(b);
       if(name.length<2||!category||description.length<10) return fail("Enter a product name, category and description of at least 10 characters.");
-      if(amount!==null&&(!Number.isFinite(amount)||amount<=0||amount>1000000000000)) return fail("Enter a valid positive product price.");
-      if(!["EUR","STN","USD","NGN","XAF"].includes(currency)) return fail("Choose a supported product currency.");
-      if(imageUrl&&!/^https:\/\//i.test(imageUrl)) return fail("Product image must use HTTPS.");
+      if(price.error) return fail(price.error);
+      if(!validProductImageUrl(imageUrl)) return fail("Use a direct HTTPS product image URL, not an advertising or redirect link.");
+      const categoryRow=await env.DB.prepare("SELECT name FROM product_categories WHERE name=? COLLATE NOCASE AND status='active'").bind(category).first();
+      if(!categoryRow) return fail("Choose an active marketplace category.");
       const before=await env.DB.prepare("SELECT id,name,status FROM products WHERE id=?").bind(id).first();
       if(!before) return fail("Product not found.",404);
+      const duplicate=await env.DB.prepare("SELECT id FROM products WHERE supplier_id=? AND id<>? AND lower(trim(name))=lower(?) AND lower(trim(category))=lower(?) AND status<>'rejected' LIMIT 1").bind(before.supplier_id,id,name,category).first();
+      if(duplicate) return fail("Another matching product already exists for this account.",409);
       const status=["published","pending","rejected"].includes(b.status)?b.status:before.status;
-      await env.DB.prepare("UPDATE products SET name=?,category=?,description=?,unit=?,origin=?,image_url=?,price_amount=?,price_currency=?,status=? WHERE id=?").bind(name,category,description,unit,origin,imageUrl,amount,currency,status,id).run();
+      await env.DB.prepare("UPDATE products SET name=?,category=?,description=?,unit=?,origin=?,image_url=?,price_amount=?,price_currency=?,status=? WHERE id=?").bind(name,categoryRow.name,description,unit,origin,imageUrl,price.amount,price.currency,status,id).run();
       await audit(env,user.id,"product.updated","product",id,"Updated "+name);
       return json({ok:true,message:"Product details updated."});
     }
@@ -632,11 +659,19 @@ async function route(request, env) {
   if(path==="/api/products" && method==="POST") {
     if(user.role!=="supplier") return fail("Supplier account required.",403);
     const b=await body(request); if(!b) return fail("Invalid request body.");
-    const name=safeText(b.name,140), category=safeText(b.category,80), description=safeText(b.description,1200), imageUrl=safeText(b.image_url,500);
-    if(name.length<2 || !category || description.length<10) return fail("Add a product name, category and description.");
-    if(imageUrl && (!/^https:\/\//i.test(imageUrl) || imageUrl.length>500)) return fail("Product image must use a valid HTTPS URL.");
+    const name=safeText(b.name,140), category=safeText(b.category,80), description=safeText(b.description,1200), imageUrl=safeText(b.image_url,700), price=productPrice(b);
+    if(name.length<2 || !category || description.length<10) return fail("Add a product name, category and description of at least 10 characters.");
+    if(price.error) return fail(price.error);
+    if(!validProductImageUrl(imageUrl)) return fail("Use a direct HTTPS product image URL, not an advertising or redirect link.");
+    const profile=await env.DB.prepare("SELECT business_name,description,phone FROM supplier_profiles WHERE user_id=?").bind(user.id).first();
+    if(!profile || safeText(profile.business_name,140).length<2 || safeText(profile.description,1200).length<10 || safeText(profile.phone,40).length<5) return fail("Complete your supplier business profile before submitting products.",403);
+    const categoryRow=await env.DB.prepare("SELECT name FROM product_categories WHERE name=? COLLATE NOCASE AND status='active'").bind(category).first();
+    if(!categoryRow) return fail("Choose an active marketplace category.");
+    const duplicate=await env.DB.prepare("SELECT id FROM products WHERE supplier_id=? AND lower(trim(name))=lower(?) AND lower(trim(category))=lower(?) AND status<>'rejected' LIMIT 1").bind(user.id,name,category).first();
+    if(duplicate) return fail("A matching product is already on your account. Contact an administrator if you need the existing listing changed.",409);
     const id=crypto.randomUUID();
-    await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,status) VALUES (?,?,?,?,?,?,?,?,'pending')").bind(id,user.id,name,category,description,safeText(b.unit,40),safeText(b.origin,100)||"São Tomé and Príncipe",imageUrl).run();
+    await env.DB.prepare("INSERT INTO products (id,supplier_id,name,category,description,unit,origin,image_url,price_amount,price_currency,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pending')").bind(id,user.id,name,categoryRow.name,description,safeText(b.unit,40),safeText(b.origin,100)||"São Tomé and Príncipe",imageUrl,price.amount,price.currency).run();
+    await audit(env,user.id,"product.submitted","product",id,"Supplier submitted "+name+" for review");
     return json({ok:true,message:"Product submitted for review.",id},201);
   }
   if(path==="/api/admin/suppliers" && method==="GET") {
