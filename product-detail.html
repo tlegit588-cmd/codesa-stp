@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Details | CODEYSA-STP Marketplace</title>
+<meta name="description" content="View product specifications, supplier information and buyer enquiry options on the CODEYSA-STP marketplace.">
+<meta name="theme-color" content="#252321">
+<link rel="icon" href="assets/codeysa-stp-logo.webp"><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="topbar"><div class="container">CODEYSA-STP MARKETPLACE <span>Product information and supplier enquiries</span></div></div>
+<header><div class="container nav">
+<a class="brand" href="index.html"><img class="brand-logo" src="assets/codeysa-stp-logo.webp" alt="CODEYSA-STP logo"><span class="brand-copy">CODEYSA-STP<small>PRODUCT INFORMATION</small></span></a>
+<button class="menu-toggle" aria-label="Open navigation" aria-expanded="false">☰</button>
+<nav class="nav-links"><a href="index.html">Home</a><a class="active" href="marketplace.html">Marketplace</a><a href="account.html">My account</a></nav>
+<a class="nav-cta" href="marketplace.html">Browse marketplace</a>
+</div></header>
+<main class="section soft"><div class="container product-detail-wrap">
+<div class="market-dashboard-breadcrumb"><a href="marketplace.html">Marketplace</a><span>/</span><strong>Product details</strong></div>
+<div id="product-detail-status" class="product-detail-status" role="status" aria-live="polite">Loading product information…</div>
+<section id="product-detail-content" hidden>
+<div class="product-detail-layout">
+<div class="product-detail-panel"><div class="product-detail-image" id="product-detail-image"><span class="product-detail-placeholder">CODEYSA-STP</span></div></div>
+<div class="product-detail-info">
+<span class="pill" id="product-category"></span>
+<h1 id="product-name"></h1>
+<div class="product-detail-price" id="product-price"></div>
+<div class="product-detail-meta" id="product-meta"></div>
+<p class="market-rating" id="product-rating"></p>
+<p class="product-detail-description" id="product-description"></p>
+<div class="product-detail-actions" id="product-actions"></div>
+<div class="product-supplier-panel">
+<h2>Supplier information</h2>
+<strong id="supplier-name"></strong>
+<p id="supplier-description"></p>
+<p id="supplier-location"></p>
+<div class="product-detail-actions" id="supplier-actions"></div>
+</div>
+</div>
+</div>
+<section class="product-detail-panel" style="margin-top:24px">
+<h2>Buyer information</h2>
+<p>Use the enquiry button to ask the supplier about current stock, minimum order quantity, specifications, shipping, payment terms and final pricing. An enquiry is not a confirmed order.</p>
+</section>
+<section class="product-detail-panel" style="margin-top:24px">
+<h2>Customer reviews</h2>
+<div id="product-review-list" class="product-review-list"><p>Loading published reviews…</p></div>
+</section>
+</section>
+</div></main>
+<footer><div class="container"><div class="footer-bottom">© <span data-year></span> CODEYSA-STP · São Tomé &amp; Príncipe</div></div></footer>
+<script src="app.js"></script>
+<script>
+(()=> {
+ const $=selector=>document.querySelector(selector);
+ const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+ const id=new URLSearchParams(location.search).get("id");
+ const status=$("#product-detail-status"),content=$("#product-detail-content");
+ if(!id){status.textContent="No product was selected. Return to the marketplace to choose a listing.";return;}
+ const formatPrice=product=>product.price_amount!==null&&product.price_amount!==undefined
+  ?new Intl.NumberFormat(undefined,{style:"currency",currency:product.price_currency||"EUR",maximumFractionDigits:2}).format(Number(product.price_amount))
+  :"Price on request";
+ const addLink=(container,label,url,className="btn btn-gold")=>{
+  const link=document.createElement("a");link.className=className;link.href=url;link.textContent=label;
+  if(url.startsWith("https://")){link.target="_blank";link.rel="noopener noreferrer";}
+  container.append(link);
+ };
+ const whatsapp=(phone,message)=>"https://wa.me/"+String(phone||"2399860074").replace(/\D/g,"")+"?text="+encodeURIComponent(message);
+ async function loadReviews(productId){
+  const target=$("#product-review-list");
+  try{
+   const response=await fetch("/api/products/"+encodeURIComponent(productId)+"/reviews",{cache:"no-store"});
+   const data=await response.json();
+   if(!response.ok)throw new Error(data.error||"Reviews are unavailable.");
+   target.replaceChildren();
+   if(!Array.isArray(data.reviews)||!data.reviews.length){const note=document.createElement("p");note.textContent="No published reviews yet. Verified buyers may leave a review after their order is delivered.";target.append(note);return;}
+   data.reviews.forEach(review=>{
+    const article=document.createElement("article");article.className="product-review";
+    const heading=document.createElement("strong");heading.textContent="★ "+review.rating+" / 5 · "+(review.buyer_name||"Buyer");
+    const comment=document.createElement("p");comment.textContent=review.comment||"No written comment.";
+    const date=document.createElement("small");date.textContent=review.created_at?new Date(review.created_at.replace(" ","T")+"Z").toLocaleDateString():"";
+    article.append(heading,comment,date);target.append(article);
+   });
+  }catch(error){target.textContent=error.message;}
+ }
+ async function load(){
+  try{
+   const response=await fetch("/api/products/"+encodeURIComponent(id),{cache:"no-store"});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(data.error||"This product is not currently available.");
+   const p=data.product;
+   if(!p)throw new Error("Product information was not returned.");
+   status.hidden=true;content.hidden=false;
+   document.title=p.name+" | CODEYSA-STP Marketplace";
+   $("#product-category").textContent=p.category||"Marketplace product";
+   $("#product-name").textContent=p.name;
+   $("#product-price").textContent=formatPrice(p);
+   $("#product-description").textContent=p.description||"No additional description has been supplied.";
+   $("#product-meta").replaceChildren();
+   [["Unit",p.unit],["Origin",p.origin||p.country],["Supplier",p.business_name]].forEach(([label,value])=>{
+    if(!value)return;const chip=document.createElement("span");chip.textContent=label+": "+value;$("#product-meta").append(chip);
+   });
+   $("#product-rating").textContent=Number(p.review_count)>0?"★ "+p.average_rating+" / 5 · "+p.review_count+" published reviews":"No published reviews yet";
+   const image=$("#product-detail-image");image.replaceChildren();
+   if(p.image_url){const img=document.createElement("img");img.src=p.image_url;img.alt=p.name;img.loading="eager";img.referrerPolicy="no-referrer";image.append(img);}
+   else {const placeholder=document.createElement("span");placeholder.className="product-detail-placeholder";placeholder.textContent="CODEYSA-STP";image.append(placeholder);}
+   const message="Hello, I am interested in "+p.name+". Please confirm current availability, minimum order quantity, specifications, shipping options and final pricing.";
+   const contactPhone=p.owner_role==="supplier"&&p.supplier_phone?p.supplier_phone:"2399860074";
+   addLink($("#product-actions"),"Enquire about this product ↗",whatsapp(contactPhone,message));
+   addLink($("#product-actions"),"Back to marketplace","marketplace.html","btn btn-outline");
+   $("#supplier-name").textContent=p.business_name||"CODEYSA-STP";
+   $("#supplier-description").textContent=p.supplier_description||"Supplier profile information is available through CODEYSA-STP.";
+   $("#supplier-location").textContent=p.country?"Location: "+p.country:"";
+   const supplierActions=$("#supplier-actions");
+   if(p.owner_role==="supplier"){
+    addLink(supplierActions,"View supplier storefront","supplier.html?id="+encodeURIComponent(p.supplier_id),"btn btn-outline");
+    if(p.supplier_website&&/^https:\/\//i.test(p.supplier_website))addLink(supplierActions,"Visit supplier website",p.supplier_website,"btn btn-outline");
+   }
+   if(p.supplier_verified_at){const verified=document.createElement("span");verified.className="pill";verified.textContent="Verified supplier";supplierActions.prepend(verified);}
+   await loadReviews(p.id);
+  }catch(error){status.textContent=error.message||"Unable to load this product. Please return to the marketplace and try again.";}
+ }
+ load();
+})();
+</script>
+</body></html>
