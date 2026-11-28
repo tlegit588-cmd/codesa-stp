@@ -431,3 +431,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .market-product-meta{border-color:#e4ded6;color:#716b64}
 .market-empty{border-color:#d4c9bc}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* CODEYSA marketplace product emphasis */
+.market-product-body h3{color:#c65312}
+.market-product-meta span:last-child{color:#c65312;font-weight:900}
