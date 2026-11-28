@@ -92,12 +92,20 @@ body{background:var(--adm-ivory);color:var(--adm-ink)}
   <section id="view-suppliers" class="admin-panel" hidden><h2>Supplier applications &amp; verification</h2><p class="admin-muted">Review submitted business information before approving suppliers. Verification notes are internal and recorded in the audit log.</p><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Business profile</th><th>Applicant</th><th>Contact</th><th>Verification</th><th>Review actions</th></tr></thead><tbody id="supplier-rows"></tbody></table></div></section>
   <section id="view-products" class="admin-panel" hidden>
    <div class="admin-toolbar"><div><h2>Product management</h2><p class="admin-muted">Create and manage CODEYSA-STP marketplace listings, prices and product images.</p></div><select id="product-filter" class="admin-filter"><option value="pending">Pending review</option><option value="published">Published</option><option value="rejected">Removed / rejected</option><option value="all">All products</option></select></div>
+   <div class="admin-product-form" style="margin-bottom:18px">
+    <div class="admin-toolbar"><div><h2>Marketplace categories</h2><p class="admin-muted">Add categories here. Active categories become available in the product form and marketplace filters.</p></div></div>
+    <form id="category-form" class="admin-actions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+     <label style="flex:1;min-width:220px">New category name<input id="category-name" maxlength="80" required placeholder="e.g. Cocoa &amp; Coffee"></label>
+     <button type="submit">Add category</button>
+    </form>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Category</th><th>Products</th><th>Action</th></tr></thead><tbody id="category-rows"><tr><td colspan="3">Loading categories…</td></tr></tbody></table></div>
+   </div>
    <form id="product-form" class="admin-product-form">
     <div class="admin-toolbar"><div><h2 id="product-form-title">Add a marketplace product</h2><p class="admin-muted">Upload a product image from your phone or computer. Maximum image size: 8 MB.</p></div></div>
     <input type="hidden" id="product-id">
     <div class="admin-product-fields">
      <label>Product name *<input id="product-name" required maxlength="140" placeholder="e.g. Premium São Tomé cocoa"></label>
-     <label>Category *<input id="product-category" required maxlength="80" placeholder="e.g. Cocoa &amp; Coffee"></label>
+     <label>Category *<select id="product-category" required><option value="">Select a category</option></select></label>
      <label>Price<input id="product-price" type="number" min="0.01" step="0.01" placeholder="Leave blank for price on request"></label>
      <label>Currency<select id="product-currency"><option value="EUR">EUR — Euro</option><option value="STN">STN — São Tomé dobra</option><option value="USD">USD — US dollar</option><option value="NGN">NGN — Nigerian naira</option><option value="XAF">XAF — Central African CFA franc</option></select></label>
      <label>Unit / packaging<input id="product-unit" maxlength="40" placeholder="e.g. per kg, 25 kg bag"></label>
