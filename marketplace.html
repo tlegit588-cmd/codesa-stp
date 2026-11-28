@@ -71,9 +71,7 @@
   const price=p.price_amount!==null&&p.price_amount!==undefined
    ? new Intl.NumberFormat(undefined,{style:"currency",currency:p.price_currency||"EUR",maximumFractionDigits:2}).format(Number(p.price_amount))
    : "Price on request";
-  const contact=p.owner_role==="admin"
-   ? '<a class="market-product-link" href="https://wa.me/2399860074?text='+encodeURIComponent("Hello CODEYSA-STP, I am interested in "+p.name+". Please share availability, pricing and product details.")+'" target="_blank" rel="noopener noreferrer">Contact CODEYSA-STP <b>→</b></a>'
-   : '<a class="market-product-link" href="product-detail.html?id='+encodeURIComponent(p.id)+'">View product details <b>→</b></a>';
+  const contact='<a class="market-product-link" href="product-detail.html?id='+encodeURIComponent(p.id)+'">View product details <b>→</b></a>';
   card.innerHTML='<div class="market-product-image produce">'+image+'</div><div class="market-product-body"><span class="market-product-category">'+esc(p.category)+'</span><h3>'+esc(p.name)+'</h3><p>'+esc(p.description)+'</p><p class="market-rating">'+(Number(p.review_count)>0?'★ '+esc(p.average_rating)+' / 5 · '+esc(p.review_count)+' reviews':'No reviews yet')+'</p><div class="market-product-meta"><span>'+esc(p.business_name||"CODEYSA-STP")+'</span><span>'+esc(price)+'</span></div>'+contact+'</div>';
   return card;
  };
