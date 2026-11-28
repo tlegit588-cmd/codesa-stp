@@ -153,6 +153,10 @@ async function route(request, env) {
     await env.DB.prepare("INSERT INTO rfqs (id,product,quantity,destination,requirements,buyer_name,buyer_contact,status) VALUES (?,?,?,?,?,?,?,'new')").bind(id,product,quantity,destination,requirements,buyerName,buyerContact).run();
     return json({ok:true,message:"Your sourcing request has been received. Our team will review it and contact you.",id},201);
   }
+  if(path==="/api/categories" && method==="GET") {
+    const rows=await env.DB.prepare("SELECT id,name FROM product_categories WHERE status='active' ORDER BY name COLLATE NOCASE").all();
+    return json({categories:rows.results});
+  }
   if (path==="/api/products" && method==="GET") {
     const rows=await env.DB.prepare("SELECT p.id,p.supplier_id,p.name,p.category,p.description,p.unit,p.origin,p.image_url,p.price_amount,p.price_currency,p.created_at,u.role AS owner_role,COALESCE(sp.business_name,'CODEYSA-STP') AS business_name,COALESCE(sp.country,p.origin) AS country,COALESCE((SELECT ROUND(AVG(r.rating),1) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published'),0) AS average_rating,(SELECT COUNT(*) FROM product_reviews r WHERE r.product_id=p.id AND r.status='published') AS review_count FROM products p JOIN users u ON u.id=p.supplier_id LEFT JOIN supplier_profiles sp ON sp.user_id=p.supplier_id WHERE p.status='published' AND ((u.role='admin' AND u.status='active') OR (u.role='supplier' AND u.status='active' AND sp.business_name<>'')) ORDER BY p.created_at DESC LIMIT 100").all();
     return json({products:rows.results});
@@ -512,6 +516,30 @@ async function route(request, env) {
       await env.DB.prepare("UPDATE products SET name=?,category=?,description=?,unit=?,origin=?,image_url=?,price_amount=?,price_currency=?,status=? WHERE id=?").bind(name,category,description,unit,origin,imageUrl,amount,currency,status,id).run();
       await audit(env,user.id,"product.updated","product",id,"Updated "+name);
       return json({ok:true,message:"Product details updated."});
+    }
+    if(path==="/api/admin/categories" && method==="GET") {
+      const rows=await env.DB.prepare("SELECT c.id,c.name,c.status,c.created_at,(SELECT COUNT(*) FROM products p WHERE p.category=c.name COLLATE NOCASE) AS product_count FROM product_categories c ORDER BY c.name COLLATE NOCASE").all();
+      return json({categories:rows.results});
+    }
+    if(path==="/api/admin/categories" && method==="POST") {
+      const b=await body(request),name=safeText(b?.name,80);
+      if(name.length<2) return fail("Category name must contain at least 2 characters.");
+      try {
+        const id=crypto.randomUUID();
+        await env.DB.prepare("INSERT INTO product_categories (id,name,status) VALUES (?,?,'active')").bind(id,name).run();
+        await audit(env,user.id,"product_category.created","product_category",id,"Created category "+name);
+        return json({ok:true,message:"Marketplace category added.",id},201);
+      } catch(e) { return fail("That category already exists or could not be saved.",409); }
+    }
+    if(path.startsWith("/api/admin/categories/") && method==="DELETE") {
+      const id=decodeURIComponent(path.split("/").pop()||"");
+      const category=await env.DB.prepare("SELECT id,name FROM product_categories WHERE id=?").bind(id).first();
+      if(!category) return fail("Category not found.",404);
+      const used=await env.DB.prepare("SELECT COUNT(*) AS n FROM products WHERE category=? COLLATE NOCASE").bind(category.name).first();
+      if(Number(used?.n)>0) return fail("This category is assigned to products. Keep it active or reassign those products first.",409);
+      await env.DB.prepare("DELETE FROM product_categories WHERE id=?").bind(id).run();
+      await audit(env,user.id,"product_category.deleted","product_category",id,"Deleted category "+category.name);
+      return json({ok:true,message:"Category deleted."});
     }
     if(path==="/api/admin/products" && method==="GET") {
       const status=url.searchParams.get("status")||"all";
